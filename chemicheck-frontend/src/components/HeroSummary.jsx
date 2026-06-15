@@ -1,8 +1,6 @@
-import heroImage from '../assets/hero.png'
-
-function HeroSummary({ analysis, summary, riskLabels }) {
+function HeroSummary() {
   return (
-    <section className="hero-section" aria-labelledby="hero-title">
+    <section className="hero-section guide-only" aria-labelledby="hero-title">
       <div className="hero-copy">
         <div>
           <p className="status-pill">라벨을 읽고, 성분을 쉽게 풀어드립니다</p>
@@ -12,12 +10,6 @@ function HeroSummary({ analysis, summary, riskLabels }) {
             이해할 수 있는 설명을 제공합니다.
           </p>
         </div>
-        <img src={heroImage} alt="" aria-hidden="true" />
-      </div>
-      <div className={`risk-meter risk-${analysis.overallRisk}`} aria-label={`현재 위험도 ${riskLabels[analysis.overallRisk]}`}>
-        <span>종합 위험도</span>
-        <strong>{riskLabels[analysis.overallRisk]}</strong>
-        <p>{summary}</p>
       </div>
     </section>
   )

@@ -2,7 +2,7 @@ function AnalysisPanel({ analysis }) {
   return (
     <div className="result-panel">
       <div className="section-heading">
-        <p className="eyebrow">2. 위험도 분석</p>
+        <p className="eyebrow">위험도 분석</p>
         <h2>성분별 결과</h2>
       </div>
 

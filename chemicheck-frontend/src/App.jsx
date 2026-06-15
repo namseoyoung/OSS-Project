@@ -3,7 +3,7 @@ import './App.css'
 import AnalysisPanel from './components/AnalysisPanel'
 import HeroSummary from './components/HeroSummary'
 import LabelInputPanel from './components/LabelInputPanel'
-import ProcessPipeline from './components/ProcessPipeline'
+import RiskSummary from './components/RiskSummary'
 import TopBar from './components/TopBar'
 import { sampleLabels } from './data/ingredientCatalog'
 import { analyzeLabel, buildSummary } from './lib/analyzeLabel'
@@ -18,10 +18,11 @@ const riskLabels = {
 const productTypes = ['욕실 세정제', '살균제', '세탁 세제', '방향제', '다목적 세정제']
 
 function App() {
-  const [labelText, setLabelText] = useState(sampleLabels[0].text)
+  const [labelText, setLabelText] = useState('')
   const [productType, setProductType] = useState(sampleLabels[0].productType)
   const [imagePreview, setImagePreview] = useState('')
   const [largeText, setLargeText] = useState(false)
+  const hasUploadedImage = Boolean(imagePreview)
 
   const analysis = useMemo(() => analyzeLabel(labelText, productType), [labelText, productType])
   const summary = buildSummary(analysis)
@@ -30,35 +31,39 @@ function App() {
     const file = event.target.files?.[0]
     if (!file) return
 
+    const selectedSample = sampleLabels.find((sample) => sample.productType === productType)
+
     setImagePreview(URL.createObjectURL(file))
+    setLabelText(selectedSample?.text ?? sampleLabels[0].text)
   }
 
-  const applySample = (sample) => {
-    setLabelText(sample.text)
-    setProductType(sample.productType)
+  const handleProductTypeChange = (nextProductType) => {
+    const nextSample = sampleLabels.find((sample) => sample.productType === nextProductType)
+
+    setProductType(nextProductType)
+    setLabelText(nextSample?.text ?? sampleLabels[0].text)
   }
 
   return (
     <main className={largeText ? 'app large-text' : 'app'}>
       <TopBar largeText={largeText} onLargeTextChange={setLargeText} />
-      <HeroSummary analysis={analysis} summary={summary} riskLabels={riskLabels} />
+      <HeroSummary />
 
-      <section className="workspace" aria-label="성분 분석 작업 영역">
+      <section className={hasUploadedImage ? 'workspace' : 'workspace upload-only'} aria-label="성분 분석 작업 영역">
         <LabelInputPanel
           imagePreview={imagePreview}
-          labelText={labelText}
           productType={productType}
           productTypes={productTypes}
-          sampleLabels={sampleLabels}
           onImageChange={handleImageChange}
-          onLabelTextChange={setLabelText}
-          onProductTypeChange={setProductType}
-          onSampleApply={applySample}
+          onProductTypeChange={handleProductTypeChange}
+          riskSummary={
+            hasUploadedImage ? (
+              <RiskSummary analysis={analysis} riskLabels={riskLabels} summary={summary} />
+            ) : null
+          }
         />
-        <AnalysisPanel analysis={analysis} />
+        {hasUploadedImage && <AnalysisPanel analysis={analysis} />}
       </section>
-
-      <ProcessPipeline />
     </main>
   )
 }
