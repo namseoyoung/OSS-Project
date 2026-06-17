@@ -19,24 +19,52 @@ class RiskAnalyzer:
             }
 
     def analyze_ingredient(self, normalized_item):
-        if not normalized_item["matched"]:
+        if not isinstance(normalized_item, dict):
+            return self.unclassified_result(
+                normalized_item,
+                None,
+                "INVALID_NORMALIZED_ITEM"
+            )
+
+        if not normalized_item.get("matched", False):
             return {
-                "original_name": normalized_item["original_name"],
+                "original_name": normalized_item.get("original_name"),
                 "standard_name": None,
                 "risk_found": False,
                 "risk_score": 0,
-                "risk_level": "Unknown"
+                "risk_level": "Unknown",
+                "error_code": normalized_item.get(
+                    "error_code",
+                    "UNCLASSIFIED_INGREDIENT"
+                )
             }
 
-        standard_name = normalized_item["standard_name"].strip().lower()
+        standard_value = normalized_item.get("standard_name")
+
+        if standard_value is None:
+            return self.unclassified_result(
+                normalized_item.get("original_name"),
+                None,
+                "MISSING_STANDARD_NAME"
+            )
+
+        standard_name = str(standard_value).strip().lower()
+
+        if not standard_name:
+            return self.unclassified_result(
+                normalized_item.get("original_name"),
+                None,
+                "MISSING_STANDARD_NAME"
+            )
 
         if standard_name not in self.risk_db:
             return {
-                "original_name": normalized_item["original_name"],
+                "original_name": normalized_item.get("original_name"),
                 "standard_name": standard_name,
                 "risk_found": False,
                 "risk_score": 0,
-                "risk_level": "Unknown"
+                "risk_level": "Unknown",
+                "error_code": "RISK_DB_NOT_FOUND"
             }
 
         risk_info = self.risk_db[standard_name]
@@ -58,6 +86,16 @@ class RiskAnalyzer:
             "environment_score": risk_info["environment_score"],
             "risk_score": risk_score,
             "risk_level": risk_level
+        }
+
+    def unclassified_result(self, original_name, standard_name, error_code):
+        return {
+            "original_name": original_name,
+            "standard_name": standard_name,
+            "risk_found": False,
+            "risk_score": 0,
+            "risk_level": "Unknown",
+            "error_code": error_code
         }
 
     def get_ingredient_risk_level(self, risk_score):

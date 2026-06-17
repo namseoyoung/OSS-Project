@@ -38,7 +38,7 @@ class IngredientNormalizer:
                     self.alias_list.append(alias)
 
     def exact_match(self, ingredient_name):
-        ingredient = ingredient_name.strip().lower()
+        ingredient = str(ingredient_name).strip().lower()
 
         if ingredient in self.alias_dict:
             return {
@@ -53,7 +53,15 @@ class IngredientNormalizer:
         return None
 
     def similarity_match(self, ingredient_name):
-        ingredient = ingredient_name.strip().lower()
+        ingredient = str(ingredient_name).strip().lower()
+
+        if not ingredient:
+            return self.unmatched_result(
+                ingredient_name,
+                None,
+                0,
+                "EMPTY_INGREDIENT_NAME"
+            )
 
         best_alias = None
         best_score = 0
@@ -75,16 +83,22 @@ class IngredientNormalizer:
                 "matched": True
             }
 
-        return {
-            "original_name": ingredient_name,
-            "standard_name": None,
-            "match_type": None,
-            "similarity_score": best_score,
-            "matched_alias": best_alias,
-            "matched": False
-        }
+        return self.unmatched_result(
+            ingredient_name,
+            best_alias,
+            best_score,
+            "INGREDIENT_NOT_CLASSIFIED"
+        )
 
     def normalize_one(self, ingredient_name):
+        if ingredient_name is None:
+            return self.unmatched_result(
+                ingredient_name,
+                None,
+                0,
+                "EMPTY_INGREDIENT_NAME"
+            )
+
         exact_result = self.exact_match(ingredient_name)
 
         if exact_result is not None:
@@ -92,7 +106,24 @@ class IngredientNormalizer:
 
         return self.similarity_match(ingredient_name)
 
+    def unmatched_result(self, ingredient_name, best_alias, best_score, error_code):
+        return {
+            "original_name": ingredient_name,
+            "standard_name": None,
+            "match_type": None,
+            "similarity_score": best_score,
+            "matched_alias": best_alias,
+            "matched": False,
+            "error_code": error_code
+        }
+
     def normalize_ingredients(self, ingredient_list):
+        if ingredient_list is None:
+            return []
+
+        if isinstance(ingredient_list, str):
+            ingredient_list = [ingredient_list]
+
         results = []
 
         for ingredient in ingredient_list:
