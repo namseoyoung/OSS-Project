@@ -34,14 +34,23 @@ export const mapBackendAnalysis = (payload) => {
   const explanations = riskExplanation.ingredient_explanations ?? []
   const ingredientResults = riskAnalysis.ingredient_results ?? []
   const candidates = payload.ocr?.ingredients ?? normalizedResults.map((item) => item.original_name).filter(Boolean)
+  const seenIngredients = new Set()
 
-  const matchedIngredients = explanations.flatMap((explanation, index) => {
+  const matchedIngredients = explanations.reduce((items, explanation, index) => {
+    const key = String(explanation.standard_name || explanation.original_name || index).trim().toLowerCase()
+
+    if (seenIngredients.has(key)) {
+      return items
+    }
+
     const riskResult = ingredientResults.find((item) => (
       item.original_name === explanation.original_name
       && item.standard_name === explanation.standard_name
     )) ?? ingredientResults[index] ?? {}
 
-    if (!riskResult.risk_found) return []
+    if (!riskResult.risk_found) {
+      return items
+    }
 
     const risk = normalizeRisk(explanation.risk_level)
     const normalized = normalizedResults.find((item) => (
@@ -49,7 +58,9 @@ export const mapBackendAnalysis = (payload) => {
       && item.standard_name === explanation.standard_name
     )) ?? normalizedResults[index] ?? {}
 
-    return [{
+    seenIngredients.add(key)
+
+    items.push({
       id: `${explanation.standard_name}-${index}`,
       name: explanation.standard_name,
       matchedAlias: normalized.original_name ?? explanation.original_name ?? explanation.standard_name,
@@ -59,10 +70,14 @@ export const mapBackendAnalysis = (payload) => {
       concerns: [explanation.basis || 'CSV 기반 위험도 분류'].filter(Boolean),
       guidance: [explanation.warning].filter(Boolean),
       sensitiveNote: explanation.description,
-    }]
-  })
+    })
 
-  const riskCounts = matchedIngredients.reduce(
+    return items
+  }, [])
+
+  const sortedIngredients = matchedIngredients.toSorted((a, b) => b.riskMeta.score - a.riskMeta.score)
+
+  const riskCounts = sortedIngredients.reduce(
     (counts, ingredient) => ({
       ...counts,
       [ingredient.risk]: counts[ingredient.risk] + 1,
@@ -73,7 +88,7 @@ export const mapBackendAnalysis = (payload) => {
   return {
     productType: '',
     candidates,
-    matchedIngredients,
+    matchedIngredients: sortedIngredients,
     unmatchedCandidates: normalizedResults
       .filter((item) => !item.matched)
       .map((item) => item.original_name)

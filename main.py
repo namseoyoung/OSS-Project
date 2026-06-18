@@ -36,6 +36,25 @@ risk_analyzer = RiskAnalyzer(RISK_DB_PATH)
 risk_explainer = RiskExplanationEngine(RISK_DB_PATH)
 
 
+def dedupe_normalized_results(normalized_results):
+    deduped = []
+    seen = set()
+
+    for item in normalized_results:
+        if item.get("matched") and item.get("standard_name"):
+            key = ("matched", str(item["standard_name"]).strip().lower())
+        else:
+            key = ("unmatched", str(item.get("original_name", "")).strip().lower())
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+        deduped.append(item)
+
+    return deduped
+
+
 class AnalyzeIngredientsRequest(BaseModel):
     ingredients: list[str] = Field(
         ...,
@@ -120,12 +139,6 @@ async def analyze_label_image(image: UploadFile = File(...)):
                 detail=f"OCR 처리 중 오류가 발생했습니다: {exc}"
             ) from exc
 
-        if not ocr_result.get("detection_success"):
-            raise HTTPException(
-                status_code=422,
-                detail=ocr_result.get("message") or "성분표 영역을 탐지하지 못했습니다."
-            )
-
         original_ocr = ocr_result.get("original_ocr", {})
         processed_ocr = ocr_result.get("processed_ocr", {})
         raw_text = processed_ocr.get("raw_text") or original_ocr.get("raw_text", "")
@@ -142,11 +155,13 @@ async def analyze_label_image(image: UploadFile = File(...)):
         if not ingredients:
             raise HTTPException(
                 status_code=422,
-                detail="OCR 결과에서 성분명을 추출하지 못했습니다."
+                detail=ocr_result.get("message") or "OCR 결과에서 성분명을 추출하지 못했습니다."
             )
 
-        normalized_results = normalizer.normalize_ingredients(
-            ingredients
+        normalized_results = dedupe_normalized_results(
+            normalizer.normalize_ingredients(
+                ingredients
+            )
         )
 
         product_risk = risk_analyzer.analyze_product(
