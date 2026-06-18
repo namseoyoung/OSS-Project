@@ -6,16 +6,69 @@ class RiskAnalyzer:
         self.risk_db = {}
         self.load_risk_db(risk_db_path)
 
+    def find_column(self, df, keyword, exclude=None):
+        exclude = exclude or []
+
+        for col in df.columns:
+            col_text = str(col)
+
+            if keyword in col_text:
+                if all(ex not in col_text for ex in exclude):
+                    return col
+
+        return None
+
+    def risk_level_to_scores(self, risk_level):
+        risk_level = str(risk_level).strip().lower()
+
+        if risk_level == "low":
+            return 1, 1, 1
+
+        if risk_level == "medium":
+            return 3, 3, 3
+
+        if risk_level == "high":
+            return 5, 5, 5
+
+        return 0, 0, 0
+
     def load_risk_db(self, risk_db_path):
         df = pd.read_csv(risk_db_path)
 
+        standard_col = self.find_column(df, "standard_name")
+        category_col = self.find_column(df, "category")
+        risk_level_col = self.find_column(df, "risk_level")
+        basis_col = self.find_column(df, "basis")
+        warning_col = self.find_column(df, "warning", exclude=["초본"])
+        description_col = self.find_column(df, "description")
+
+        if standard_col is None:
+            raise ValueError("standard_name 컬럼을 찾을 수 없습니다.")
+
+        if risk_level_col is None:
+            raise ValueError("risk_level 컬럼을 찾을 수 없습니다.")
+
         for _, row in df.iterrows():
-            standard_name = str(row["standard_name"]).strip().lower()
+            standard_name = str(row[standard_col]).strip().lower()
+
+            if standard_name == "" or standard_name == "nan":
+                continue
+
+            risk_level = str(row[risk_level_col]).strip()
+
+            toxicity, irritation, environment = self.risk_level_to_scores(
+                risk_level
+            )
 
             self.risk_db[standard_name] = {
-                "toxicity_score": int(row["toxicity_score"]),
-                "irritation_score": int(row["irritation_score"]),
-                "environment_score": int(row["environment_score"])
+                "category": str(row[category_col]).strip() if category_col else "",
+                "risk_level": risk_level,
+                "basis": str(row[basis_col]).strip() if basis_col else "",
+                "warning": str(row[warning_col]).strip() if warning_col else "",
+                "description": str(row[description_col]).strip() if description_col else "",
+                "toxicity_score": toxicity,
+                "irritation_score": irritation,
+                "environment_score": environment
             }
 
     def analyze_ingredient(self, normalized_item):
@@ -27,17 +80,14 @@ class RiskAnalyzer:
             )
 
         if not normalized_item.get("matched", False):
-            return {
-                "original_name": normalized_item.get("original_name"),
-                "standard_name": None,
-                "risk_found": False,
-                "risk_score": 0,
-                "risk_level": "Unknown",
-                "error_code": normalized_item.get(
+            return self.unclassified_result(
+                normalized_item.get("original_name"),
+                None,
+                normalized_item.get(
                     "error_code",
                     "UNCLASSIFIED_INGREDIENT"
                 )
-            }
+            )
 
         standard_value = normalized_item.get("standard_name")
 
@@ -58,14 +108,11 @@ class RiskAnalyzer:
             )
 
         if standard_name not in self.risk_db:
-            return {
-                "original_name": normalized_item.get("original_name"),
-                "standard_name": standard_name,
-                "risk_found": False,
-                "risk_score": 0,
-                "risk_level": "Unknown",
-                "error_code": "RISK_DB_NOT_FOUND"
-            }
+            return self.unclassified_result(
+                normalized_item.get("original_name"),
+                standard_name,
+                "RISK_DB_NOT_FOUND"
+            )
 
         risk_info = self.risk_db[standard_name]
 
@@ -75,17 +122,19 @@ class RiskAnalyzer:
             + risk_info["environment_score"]
         )
 
-        risk_level = self.get_ingredient_risk_level(risk_score)
-
         return {
             "original_name": normalized_item["original_name"],
             "standard_name": standard_name,
             "risk_found": True,
+            "category": risk_info["category"],
+            "risk_level": risk_info["risk_level"],
             "toxicity_score": risk_info["toxicity_score"],
             "irritation_score": risk_info["irritation_score"],
             "environment_score": risk_info["environment_score"],
             "risk_score": risk_score,
-            "risk_level": risk_level
+            "basis": risk_info["basis"],
+            "warning": risk_info["warning"],
+            "description": risk_info["description"]
         }
 
     def unclassified_result(self, original_name, standard_name, error_code):
@@ -95,20 +144,15 @@ class RiskAnalyzer:
             "risk_found": False,
             "risk_score": 0,
             "risk_level": "Unknown",
+            "category": "",
+            "basis": "",
+            "warning": "",
+            "description": "",
             "error_code": error_code
         }
 
-    def get_ingredient_risk_level(self, risk_score):
-        if risk_score <= 5:
-            return "Low"
-        elif risk_score <= 10:
-            return "Medium"
-        else:
-            return "High"
-
     def analyze_product(self, normalized_results):
         ingredient_results = []
-
         total_score = 0
         found_count = 0
         high_count = 0
@@ -121,15 +165,14 @@ class RiskAnalyzer:
                 total_score += analyzed["risk_score"]
                 found_count += 1
 
-                if analyzed["risk_level"] == "High":
+                if analyzed["risk_level"].lower() == "high":
                     high_count += 1
 
         if found_count == 0:
             final_score = 0
             final_level = "Unknown"
         else:
-            average_score = total_score / found_count
-            final_score = round(average_score, 2)
+            final_score = round(total_score / found_count, 2)
             final_level = self.get_product_risk_level(final_score, high_count)
 
         return {
