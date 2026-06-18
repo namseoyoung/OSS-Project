@@ -1,12 +1,26 @@
+import re
+
 import pandas as pd
 from rapidfuzz import fuzz
 
 
 class IngredientNormalizer:
-    def __init__(self, dataset_path, threshold=85):
+    def __init__(
+        self,
+        dataset_path,
+        threshold=90,
+        short_threshold=95,
+        ambiguity_margin=3,
+        max_length_difference=7,
+        noise_threshold=55
+    ):
         self.alias_dict = {}
         self.alias_list = []
         self.threshold = threshold
+        self.short_threshold = short_threshold
+        self.ambiguity_margin = ambiguity_margin
+        self.max_length_difference = max_length_difference
+        self.noise_threshold = noise_threshold
         self.load_dataset(dataset_path)
 
     def load_dataset(self, dataset_path):
@@ -61,22 +75,72 @@ class IngredientNormalizer:
     def similarity_match(self, ingredient_name):
         ingredient = str(ingredient_name).strip().lower()
 
-        best_alias = None
-        best_score = 0
+        input_numbers = self.extract_numbers(ingredient)
+        best_by_standard = {}
 
         for alias in self.alias_list:
-            score = fuzz.ratio(ingredient, alias)
+            if self.extract_numbers(alias) != input_numbers:
+                continue
 
-            if score > best_score:
-                best_score = score
-                best_alias = alias
+            score = max(
+                fuzz.ratio(ingredient, alias),
+                fuzz.token_set_ratio(ingredient, alias),
+                fuzz.WRatio(ingredient, alias)
+            )
+            standard_name = self.alias_dict[alias]
+            current = best_by_standard.get(standard_name)
 
-        if best_score >= self.threshold:
+            if current is None or score > current["score"]:
+                best_by_standard[standard_name] = {
+                    "alias": alias,
+                    "score": score
+                }
+
+        candidates = sorted(
+            best_by_standard.items(),
+            key=lambda item: item[1]["score"],
+            reverse=True
+        )
+
+        if not candidates:
+            return self.unclassified_result(
+                ingredient_name,
+                None,
+                0,
+                "숫자 정보가 일치하는 후보 성분이 없습니다."
+            )
+
+        best_standard, best_match = candidates[0]
+        best_alias = best_match["alias"]
+        best_score = best_match["score"]
+        second_score = candidates[1][1]["score"] if len(candidates) > 1 else 0
+        required_threshold = (
+            self.short_threshold
+            if len(ingredient.replace(" ", "")) <= 5
+            else self.threshold
+        )
+
+        is_ambiguous = (
+            len(candidates) > 1
+            and best_score - second_score < self.ambiguity_margin
+        )
+        has_valid_length = (
+            abs(len(ingredient) - len(best_alias))
+            <= self.max_length_difference
+        )
+
+        if (
+            best_score >= required_threshold
+            and not is_ambiguous
+            and has_valid_length
+        ):
             return {
                 "original_name": ingredient_name,
-                "standard_name": self.alias_dict[best_alias],
+                "standard_name": best_standard,
                 "match_type": "similarity",
                 "similarity_score": best_score,
+                "second_similarity_score": second_score,
+                "required_threshold": required_threshold,
                 "matched_alias": best_alias,
                 "matched": True,
                 "status": "MATCHED",
@@ -84,16 +148,47 @@ class IngredientNormalizer:
                 "message": "Similarity Match를 통해 성분명 정규화에 성공했습니다."
             }
 
+        if is_ambiguous:
+            message = "유사한 후보가 여러 개라 자동 분류하지 않았습니다."
+        elif not has_valid_length:
+            message = "입력값과 후보 성분명의 길이 차이가 커 자동 분류하지 않았습니다."
+        else:
+            message = "유사도 임계값을 충족하지 못한 미분류/신규 화학물질입니다."
+
+        return self.unclassified_result(
+            ingredient_name,
+            best_alias,
+            best_score,
+            message,
+            second_score,
+            required_threshold
+        )
+
+    def extract_numbers(self, value):
+        return tuple(re.findall(r"\d+", str(value)))
+
+    def unclassified_result(
+        self,
+        ingredient_name,
+        best_alias,
+        best_score,
+        message,
+        second_score=0,
+        required_threshold=None
+    ):
         return {
             "original_name": ingredient_name,
             "standard_name": None,
             "match_type": None,
             "similarity_score": best_score,
+            "second_similarity_score": second_score,
+            "required_threshold": required_threshold,
             "matched_alias": best_alias,
             "matched": False,
             "status": "UNCLASSIFIED_CHEMICAL",
             "error_code": "CHEM_001",
-            "message": "Exact Match와 Similarity Match 모두 실패한 미분류/신규 화학물질입니다."
+            "is_noise": best_alias is not None and best_score < self.noise_threshold,
+            "message": message
         }
 
     def normalize_one(self, ingredient_name):
@@ -139,10 +234,20 @@ class IngredientNormalizer:
             return results
 
         if isinstance(ingredient_list, str):
-            ingredient_list = [ingredient_list]
+            convert_list = [ingredient_list]
+        else:
+            convert_list = ingredient_list
 
-        for ingredient in ingredient_list:
+        for ingredient in convert_list:
+            ingredient = str(ingredient).strip()
+            if not ingredient:
+                continue
+
             result = self.normalize_one(ingredient)
+
+            if result.get("is_noise", False):
+                continue
+
             results.append(result)
 
         return results
