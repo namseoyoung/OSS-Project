@@ -84,15 +84,28 @@ export const mapBackendAnalysis = (payload) => {
     }),
     { low: 0, medium: 0, high: 0, unknown: 0 },
   )
+  const unmatchedCandidates = normalizedResults
+    .filter((item) => !item.matched)
+    .map((item) => item.original_name)
+    .filter(Boolean)
+  const unknownIngredients = unmatchedCandidates.map((candidate, index) => ({
+    id: `unknown-${candidate}-${index}`,
+    name: candidate,
+    matchedAlias: candidate,
+    category: '정규화되지 않은 성분 후보',
+    risk: 'unknown',
+    riskMeta: riskMeta.unknown,
+    concerns: ['성분 DB 또는 alias 사전에서 일치 항목을 찾지 못했습니다.'],
+    guidance: ['성분명을 다시 확인하거나 alias 사전에 해당 표기를 추가해 주세요.'],
+    sensitiveNote: 'OCR 결과가 부정확하거나 신규/미등록 성분일 수 있어 추가 확인이 필요합니다.',
+  }))
 
   return {
     productType: '',
     candidates,
     matchedIngredients: sortedIngredients,
-    unmatchedCandidates: normalizedResults
-      .filter((item) => !item.matched)
-      .map((item) => item.original_name)
-      .filter(Boolean),
+    unknownIngredients,
+    unmatchedCandidates,
     overallRisk: normalizeRisk(riskAnalysis.final_risk_level ?? riskExplanation.final_risk_level),
     riskCounts,
     rawText: payload.ocr?.raw_text ?? '',

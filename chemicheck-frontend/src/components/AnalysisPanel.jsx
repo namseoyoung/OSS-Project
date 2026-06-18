@@ -1,4 +1,6 @@
 function AnalysisPanel({ analysis }) {
+  const unknownIngredients = analysis.unknownIngredients ?? []
+
   return (
     <div className="result-panel">
       <div className="section-heading">
@@ -29,8 +31,8 @@ function AnalysisPanel({ analysis }) {
       </div>
 
       <div className="ingredient-list">
-        {analysis.matchedIngredients.length ? (
-          analysis.matchedIngredients.map((ingredient) => (
+        {analysis.matchedIngredients.length || unknownIngredients.length ? (
+          [...analysis.matchedIngredients, ...unknownIngredients].map((ingredient) => (
             <article className={`ingredient-card risk-${ingredient.risk}`} key={ingredient.id}>
               <div>
                 <span className="risk-badge">{ingredient.riskMeta.label}</span>
