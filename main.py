@@ -31,7 +31,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-normalizer = IngredientNormalizer(ALIAS_DB_PATH, threshold=85)
+normalizer = IngredientNormalizer(ALIAS_DB_PATH, threshold=90)
 risk_analyzer = RiskAnalyzer(RISK_DB_PATH)
 risk_explainer = RiskExplanationEngine(RISK_DB_PATH)
 
