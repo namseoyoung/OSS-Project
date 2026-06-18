@@ -2,6 +2,17 @@ import cv2
 import easyocr
 import re
 
+reader = None
+
+
+def get_ocr_reader():
+    global reader
+
+    if reader is None:
+        reader = easyocr.Reader(['ko', 'en'])
+
+    return reader
+
 def get_clean_label_image(img_path):
     """
     OpenCV 이미지 전처리 파이프라인 함수
@@ -33,10 +44,8 @@ def extract_text_from_label(processed_image):
     OCR 엔진 연동 및 텍스트 데이터 정제/배열 변환 함수
     - EasyOCR 글자 추출, 정규표현식 특수문자 제거, 쉼표 기준 데이터 파싱
     """
-    reader = easyocr.Reader(['ko', 'en'])
-    
     # EasyOCR을 통한 텍스트 추출 (detail=0 설정으로 순수 문자열 배열 반환)
-    text_list = reader.readtext(processed_image, detail=0)
+    text_list = get_ocr_reader().readtext(processed_image, detail=0)
     raw_string = " ".join(text_list)
     
     # 정규표현식 필터 적용 (한글, 영어, 숫자, 공백, 쉼표를 제외한 특수문자 제거)

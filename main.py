@@ -2,7 +2,10 @@ from ingredient_normalizer import IngredientNormalizer
 from risk_analyzer import RiskAnalyzer
 from risk_explanation import RiskExplanationEngine
 
-from fastapi import FastAPI, HTTPException
+import os
+import tempfile
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -22,6 +25,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -82,6 +86,69 @@ def analyze_ingredients(request: AnalyzeIngredientsRequest):
         "risk_analysis": product_risk,
         "risk_explanation": risk_explanation,
     }
+
+
+@app.post("/api/analyze-label")
+async def analyze_label_image(image: UploadFile = File(...)):
+    if not image.content_type or not image.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="이미지 파일만 업로드할 수 있습니다."
+        )
+
+    suffix = os.path.splitext(image.filename or "")[1] or ".jpg"
+    temp_path = None
+
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            temp_path = temp_file.name
+            temp_file.write(await image.read())
+
+        from ocr_processor import extract_text_from_label, get_clean_label_image
+
+        processed_image = get_clean_label_image(temp_path)
+
+        if processed_image is None:
+            raise HTTPException(
+                status_code=400,
+                detail="업로드한 이미지를 읽을 수 없습니다."
+            )
+
+        raw_text, clean_text, ingredients = extract_text_from_label(
+            processed_image
+        )
+
+        if not ingredients:
+            raise HTTPException(
+                status_code=422,
+                detail="OCR 결과에서 성분명을 추출하지 못했습니다."
+            )
+
+        normalized_results = normalizer.normalize_ingredients(
+            ingredients
+        )
+
+        product_risk = risk_analyzer.analyze_product(
+            normalized_results
+        )
+
+        risk_explanation = risk_explainer.explain_product(
+            product_risk
+        )
+
+        return {
+            "ocr": {
+                "raw_text": raw_text,
+                "clean_text": clean_text,
+                "ingredients": ingredients,
+            },
+            "normalized_results": normalized_results,
+            "risk_analysis": product_risk,
+            "risk_explanation": risk_explanation,
+        }
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
 
 
 @app.post("/api/risk-explanations")

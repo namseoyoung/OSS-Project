@@ -234,6 +234,24 @@
   object-fit: cover;
 }
 
+.analysis-status,
+.analysis-error {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.analysis-status {
+  background: #edf6ff;
+  color: #176b87;
+}
+
+.analysis-error {
+  background: #fdebe9;
+  color: #b42318;
+}
+
 textarea {
   width: 100%;
   box-sizing: border-box;
