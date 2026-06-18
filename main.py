@@ -108,7 +108,7 @@ async def analyze_label_image(image: UploadFile = File(...)):
             from ocr_processor import detect_crop_ocr_pipeline
 
             ocr_result = detect_crop_ocr_pipeline(
-                img_path=temp_path,
+                img_input=temp_path,
                 confidence=40,
                 overlap=30,
                 padding=10,
