@@ -62,7 +62,9 @@ export const mapBackendAnalysis = (payload) => {
     return items
   }, [])
 
-  const riskCounts = matchedIngredients.reduce(
+  const sortedIngredients = matchedIngredients.toSorted((a, b) => b.riskMeta.score - a.riskMeta.score)
+
+  const riskCounts = sortedIngredients.reduce(
     (counts, ingredient) => ({
       ...counts,
       [ingredient.risk]: counts[ingredient.risk] + 1,
@@ -73,7 +75,7 @@ export const mapBackendAnalysis = (payload) => {
   return {
     productType: '',
     candidates,
-    matchedIngredients,
+    matchedIngredients: sortedIngredients,
     unmatchedCandidates: normalizedResults
       .filter((item) => !item.matched)
       .map((item) => item.original_name)

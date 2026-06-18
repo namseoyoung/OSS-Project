@@ -23,11 +23,7 @@ function AnalysisPanel({ analysis }) {
 
       <div className="recognition-summary" aria-label="OCR 성분 후보">
         <div>
-          <span>인식 후보</span>
-          <strong>{analysis.candidates.length || 0}개</strong>
-        </div>
-        <div>
-          <span>정규화 미확인</span>
+          <span>성분 후보</span>
           <strong>{analysis.unmatchedCandidates.length || 0}개</strong>
         </div>
       </div>
