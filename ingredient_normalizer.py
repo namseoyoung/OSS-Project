@@ -3,7 +3,7 @@ from rapidfuzz import fuzz
 
 
 class IngredientNormalizer:
-    def __init__(self, dataset_path, threshold=85):
+    def __init__(self, dataset_path, threshold=75):
         self.alias_dict = {}
         self.alias_list = []
         self.threshold = threshold
@@ -65,13 +65,16 @@ class IngredientNormalizer:
         best_score = 0
 
         for alias in self.alias_list:
-            score = fuzz.ratio(ingredient, alias)
+            token_score = fuzz.token_set_ratio(ingredient, alias)
+            w_score = fuzz.WRatio(ingredient, alias)
+            
+            score = max(token_score, w_score)
 
             if score > best_score:
                 best_score = score
                 best_alias = alias
 
-        if best_score >= self.threshold:
+        if best_score >= self.threshold and abs(len(ingredient) - len(best_alias)) <= 7:
             return {
                 "original_name": ingredient_name,
                 "standard_name": self.alias_dict[best_alias],
@@ -86,7 +89,7 @@ class IngredientNormalizer:
 
         return {
             "original_name": ingredient_name,
-            "standard_name": None,
+            "standard_name": ingredient_name,
             "match_type": None,
             "similarity_score": best_score,
             "matched_alias": best_alias,
@@ -139,10 +142,20 @@ class IngredientNormalizer:
             return results
 
         if isinstance(ingredient_list, str):
-            ingredient_list = [ingredient_list]
+            convert_list = [ingredient_list]
+        else:
+            convert_list = ingredient_list
 
-        for ingredient in ingredient_list:
+        for ingredient in convert_list:
+            ingredient = str(ingredient).strip()
+            if not ingredient:
+                continue
+                
             result = self.normalize_one(ingredient)
+            
+            if result["status"] == "UNCLASSIFIED_CHEMICAL" and result["similarity_score"] < 55:
+                continue
+                
             results.append(result)
 
         return results
