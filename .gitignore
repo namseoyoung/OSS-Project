@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 
+<<<<<<< HEAD
 # Frontend dependencies, cache, and build output
 node_modules/
 dist/
@@ -8,3 +9,10 @@ dist/
 chemicheck-frontend/node_modules/
 chemicheck-frontend/dist/
 chemicheck-frontend/.vite/
+=======
+# Frontend dependencies and build output
+node_modules/
+dist/
+chemicheck-frontend/node_modules/
+chemicheck-frontend/dist/
+>>>>>>> 85d8602faf9df37dfbd56e7642084adc4ccab3f3
