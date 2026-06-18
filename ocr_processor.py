@@ -7,7 +7,7 @@ import os
 import json
 import numpy as np
 
-ROBOFLOW_API_KEY = "bniw6VZ9wmxFGilM73rl"
+ROBOFLOW_API_KEY = "api code"
 ROBOFLOW_MODEL_ID = "oss-project-labeling/2"
 ROBOFLOW_URL = f"https://detect.roboflow.com/{ROBOFLOW_MODEL_ID}?api_key={ROBOFLOW_API_KEY}"
 
@@ -152,8 +152,14 @@ def clean_ocr_result(text_list):
     for token in tokens:
         token = re.sub(r'^[가-힣\s]+[:：]', '', token).strip() # 주성분: 등 접두사 제거
         token = re.sub(r'\([^)]*\)', '', token).strip()       # 성분명 뒤의 괄호 설명 제거
+        
         if len(token) < 2:
             continue
+            
+        # 순수 숫자, 단위(ml, g), 기호 등으로만 이루어진 바코드/용량 쓰레기값 필터링
+        if re.match(r'^[0-9\s\.\-\(\)%mlg]+$', token):
+            continue
+
         if any(stopword in token for stopword in STOPWORDS):
             continue
         filtered_tokens.append(token)
@@ -173,7 +179,7 @@ def save_image(output_path, image):
 
 
 def detect_crop_ocr_pipeline(
-    img_input,  # 로컬 파일 경로, 파일 바이트 스트림, Base64 모두 가능
+    img_input,
     confidence=40,
     overlap=30,
     padding=10,
