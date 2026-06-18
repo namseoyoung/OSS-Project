@@ -1,2 +1,10 @@
 __pycache__/
 *.py[cod]
+
+# Frontend dependencies, cache, and build output
+node_modules/
+dist/
+.vite/
+chemicheck-frontend/node_modules/
+chemicheck-frontend/dist/
+chemicheck-frontend/.vite/
