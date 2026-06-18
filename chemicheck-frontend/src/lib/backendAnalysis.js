@@ -33,12 +33,21 @@ export const mapBackendAnalysis = (payload) => {
   const normalizedResults = payload.normalized_results ?? []
   const explanations = riskExplanation.ingredient_explanations ?? []
   const candidates = payload.ocr?.ingredients ?? normalizedResults.map((item) => item.original_name).filter(Boolean)
+  const seenIngredients = new Set()
 
-  const matchedIngredients = explanations.map((explanation, index) => {
+  const matchedIngredients = explanations.reduce((items, explanation, index) => {
+    const key = String(explanation.standard_name || explanation.original_name || index).trim().toLowerCase()
+
+    if (seenIngredients.has(key)) {
+      return items
+    }
+
+    seenIngredients.add(key)
+
     const risk = normalizeRisk(explanation.risk_level)
     const normalized = normalizedResults[index] ?? {}
 
-    return {
+    items.push({
       id: `${explanation.standard_name}-${index}`,
       name: explanation.standard_name,
       matchedAlias: normalized.matched_alias ?? explanation.original_name ?? explanation.standard_name,
@@ -48,8 +57,10 @@ export const mapBackendAnalysis = (payload) => {
       concerns: [explanation.basis || 'CSV 기반 위험도 분류'].filter(Boolean),
       guidance: [explanation.warning].filter(Boolean),
       sensitiveNote: explanation.description,
-    }
-  })
+    })
+
+    return items
+  }, [])
 
   const riskCounts = matchedIngredients.reduce(
     (counts, ingredient) => ({

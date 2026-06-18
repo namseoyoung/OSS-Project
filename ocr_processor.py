@@ -7,7 +7,7 @@ import os
 import json
 import numpy as np
 
-ROBOFLOW_API_KEY = "api code"
+ROBOFLOW_API_KEY = "bniw6VZ9wmxFGilM73rl"
 ROBOFLOW_MODEL_ID = "oss-project-labeling/2"
 ROBOFLOW_URL = f"https://detect.roboflow.com/{ROBOFLOW_MODEL_ID}?api_key={ROBOFLOW_API_KEY}"
 
@@ -108,7 +108,7 @@ def crop_from_prediction_v2(img_cv, prediction, padding=10):
     return cropped_img, (x1, y1, x2, y2)
 
 
-def preprocess_label_image(cropped_img, blur_kernel=(3, 3), block_size=11, c=2, scale=2.0):
+def preprocess_label_image(cropped_img, blur_kernel=(5, 5), block_size=11, c=2, scale=3.0):
     if cropped_img is None:
         return None
 
@@ -186,7 +186,7 @@ def detect_crop_ocr_pipeline(
     blur_kernel=(3, 3),
     block_size=11,
     c=2,
-    scale=2.0,
+    scale=3.0,
     save_outputs=True
 ):
     result_data = {
@@ -208,7 +208,28 @@ def detect_crop_ocr_pipeline(
 
     prediction, raw_response = detect_ingredient_label_v2(image_b64, confidence=confidence, overlap=overlap)
     if prediction is None:
-        result_data["message"] = "성분표 영역 탐지 실패"
+        original_text_list = run_easyocr(img_cv)
+        original_raw, original_clean, original_tokens = clean_ocr_result(original_text_list)
+        result_data["original_ocr"]["raw_text"] = original_raw
+        result_data["original_ocr"]["clean_text"] = original_clean
+        result_data["original_ocr"]["ingredient_candidates"] = original_tokens
+
+        processed_img = preprocess_label_image(
+            img_cv,
+            blur_kernel=blur_kernel,
+            block_size=block_size,
+            c=c,
+            scale=scale
+        )
+
+        if processed_img is not None:
+            processed_text_list = run_easyocr(processed_img)
+            processed_raw, processed_clean, processed_tokens = clean_ocr_result(processed_text_list)
+            result_data["processed_ocr"]["raw_text"] = processed_raw
+            result_data["processed_ocr"]["clean_text"] = processed_clean
+            result_data["processed_ocr"]["ingredient_candidates"] = processed_tokens
+
+        result_data["message"] = "성분표 영역 탐지 실패 - 전체 이미지 OCR fallback 수행"
         return result_data
 
     cropped_img, bbox = crop_from_prediction_v2(img_cv, prediction, padding=padding)
