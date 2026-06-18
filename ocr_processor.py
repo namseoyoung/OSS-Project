@@ -28,6 +28,10 @@ STOPWORDS = [
     'www', 'http', '표준사용량', '품명', '신고번호', '문의'
 ]
 
+SINGLE_CHAR_INGREDIENTS = {
+    '물',
+}
+
 def parse_input_image(img_input):
     """경로, 바이트, Base64 등 다양한 웹 입력 포맷을 OpenCV 이미지와 Base64 스트링으로 통합 파싱"""
     image_bytes = None
@@ -162,7 +166,7 @@ def clean_ocr_result(text_list):
         token = re.sub(r'^[가-힣\s]+[:：]', '', token).strip() # 주성분: 등 접두사 제거
         token = re.sub(r'\([^)]*\)', '', token).strip()       # 성분명 뒤의 괄호 설명 제거
         
-        if len(token) < 2:
+        if len(token) < 2 and token not in SINGLE_CHAR_INGREDIENTS:
             continue
             
         # 순수 숫자, 단위(ml, g), 기호 등으로만 이루어진 바코드/용량 쓰레기값 필터링
