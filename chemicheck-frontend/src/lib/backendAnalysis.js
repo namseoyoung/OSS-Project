@@ -75,7 +75,7 @@ export const mapBackendAnalysis = (payload) => {
 }
 
 export const uploadLabelImage = async (file) => {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
   const formData = new FormData()
   formData.append('image', file)
 
@@ -92,7 +92,8 @@ export const uploadLabelImage = async (file) => {
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null)
-    throw new Error(errorBody?.detail ?? '이미지 분석 중 오류가 발생했습니다.')
+    const errorText = errorBody ? '' : await response.text().catch(() => '')
+    throw new Error(errorBody?.detail ?? errorText ?? '이미지 분석 중 오류가 발생했습니다.')
   }
 
   return mapBackendAnalysis(await response.json())

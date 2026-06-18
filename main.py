@@ -104,19 +104,40 @@ async def analyze_label_image(image: UploadFile = File(...)):
             temp_path = temp_file.name
             temp_file.write(await image.read())
 
-        from ocr_processor import extract_text_from_label, get_clean_label_image
+        try:
+            from ocr_processor import detect_crop_ocr_pipeline
 
-        processed_image = get_clean_label_image(temp_path)
-
-        if processed_image is None:
+            ocr_result = detect_crop_ocr_pipeline(
+                img_path=temp_path,
+                confidence=40,
+                overlap=30,
+                padding=10,
+                save_outputs=False
+            )
+        except Exception as exc:
             raise HTTPException(
-                status_code=400,
-                detail="업로드한 이미지를 읽을 수 없습니다."
+                status_code=500,
+                detail=f"OCR 처리 중 오류가 발생했습니다: {exc}"
+            ) from exc
+
+        if not ocr_result.get("detection_success"):
+            raise HTTPException(
+                status_code=422,
+                detail=ocr_result.get("message") or "성분표 영역을 탐지하지 못했습니다."
             )
 
-        raw_text, clean_text, ingredients = extract_text_from_label(
-            processed_image
-        )
+        original_ocr = ocr_result.get("original_ocr", {})
+        processed_ocr = ocr_result.get("processed_ocr", {})
+        raw_text = processed_ocr.get("raw_text") or original_ocr.get("raw_text", "")
+        clean_text = processed_ocr.get("clean_text") or original_ocr.get("clean_text", "")
+        ingredients = []
+
+        for candidate in (
+            processed_ocr.get("ingredient_candidates", [])
+            + original_ocr.get("ingredient_candidates", [])
+        ):
+            if candidate not in ingredients:
+                ingredients.append(candidate)
 
         if not ingredients:
             raise HTTPException(
@@ -141,6 +162,9 @@ async def analyze_label_image(image: UploadFile = File(...)):
                 "raw_text": raw_text,
                 "clean_text": clean_text,
                 "ingredients": ingredients,
+                "detection_success": ocr_result.get("detection_success"),
+                "bbox": ocr_result.get("bbox"),
+                "prediction_confidence": ocr_result.get("prediction_confidence"),
             },
             "normalized_results": normalized_results,
             "risk_analysis": product_risk,
