@@ -1,4 +1,5 @@
 import re
+import unicodedata
 
 import pandas as pd
 from rapidfuzz import fuzz
@@ -12,7 +13,8 @@ class IngredientNormalizer:
         short_threshold=95,
         ambiguity_margin=3,
         max_length_difference=7,
-        noise_threshold=55
+        noise_threshold=55,
+        hangul_threshold=84
     ):
         self.alias_dict = {}
         self.alias_list = []
@@ -21,6 +23,7 @@ class IngredientNormalizer:
         self.ambiguity_margin = ambiguity_margin
         self.max_length_difference = max_length_difference
         self.noise_threshold = noise_threshold
+        self.hangul_threshold = hangul_threshold
         self.load_dataset(dataset_path)
 
     def load_dataset(self, dataset_path):
@@ -82,18 +85,29 @@ class IngredientNormalizer:
             if self.extract_numbers(alias) != input_numbers:
                 continue
 
-            score = max(
+            compact_alias = re.sub(r"\s+", "", alias)
+            if len(compact_alias) < 2:
+                continue
+
+            text_score = max(
                 fuzz.ratio(ingredient, alias),
                 fuzz.token_set_ratio(ingredient, alias),
                 fuzz.WRatio(ingredient, alias)
             )
+            hangul_score = fuzz.ratio(
+                self.decompose_hangul(ingredient),
+                self.decompose_hangul(alias)
+            )
+            score = max(text_score, hangul_score)
             standard_name = self.alias_dict[alias]
             current = best_by_standard.get(standard_name)
 
             if current is None or score > current["score"]:
                 best_by_standard[standard_name] = {
                     "alias": alias,
-                    "score": score
+                    "score": score,
+                    "text_score": text_score,
+                    "hangul_score": hangul_score
                 }
 
         candidates = sorted(
@@ -113,6 +127,8 @@ class IngredientNormalizer:
         best_standard, best_match = candidates[0]
         best_alias = best_match["alias"]
         best_score = best_match["score"]
+        best_text_score = best_match["text_score"]
+        best_hangul_score = best_match["hangul_score"]
         second_score = candidates[1][1]["score"] if len(candidates) > 1 else 0
         required_threshold = (
             self.short_threshold
@@ -128,9 +144,16 @@ class IngredientNormalizer:
             abs(len(ingredient) - len(best_alias))
             <= self.max_length_difference
         )
+        passes_similarity = (
+            best_text_score >= required_threshold
+            or (
+                self.has_hangul(ingredient)
+                and best_hangul_score >= self.hangul_threshold
+            )
+        )
 
         if (
-            best_score >= required_threshold
+            passes_similarity
             and not is_ambiguous
             and has_valid_length
         ):
@@ -139,6 +162,8 @@ class IngredientNormalizer:
                 "standard_name": best_standard,
                 "match_type": "similarity",
                 "similarity_score": best_score,
+                "text_similarity_score": best_text_score,
+                "hangul_similarity_score": best_hangul_score,
                 "second_similarity_score": second_score,
                 "required_threshold": required_threshold,
                 "matched_alias": best_alias,
@@ -166,6 +191,13 @@ class IngredientNormalizer:
 
     def extract_numbers(self, value):
         return tuple(re.findall(r"\d+", str(value)))
+
+    def decompose_hangul(self, value):
+        normalized = unicodedata.normalize("NFD", str(value).lower())
+        return "".join(char for char in normalized if not char.isspace())
+
+    def has_hangul(self, value):
+        return bool(re.search(r"[가-힣]", str(value)))
 
     def unclassified_result(
         self,
@@ -239,7 +271,7 @@ class IngredientNormalizer:
             convert_list = ingredient_list
 
         for ingredient in convert_list:
-            ingredient = str(ingredient).strip()
+            ingredient = str(ingredient).strip(",. -_\n\r\t")
             if not ingredient:
                 continue
 

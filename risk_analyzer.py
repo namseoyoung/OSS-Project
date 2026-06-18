@@ -86,7 +86,8 @@ class RiskAnalyzer:
                 normalized_item.get(
                     "error_code",
                     "UNCLASSIFIED_INGREDIENT"
-                )
+                ),
+                normalized_item
             )
 
         standard_value = normalized_item.get("standard_name")
@@ -137,8 +138,14 @@ class RiskAnalyzer:
             "description": risk_info["description"]
         }
 
-    def unclassified_result(self, original_name, standard_name, error_code):
-        return {
+    def unclassified_result(
+        self,
+        original_name,
+        standard_name,
+        error_code,
+        normalized_item=None
+    ):
+        result = {
             "original_name": original_name,
             "standard_name": standard_name,
             "risk_found": False,
@@ -150,6 +157,15 @@ class RiskAnalyzer:
             "description": "",
             "error_code": error_code
         }
+
+        if isinstance(normalized_item, dict):
+            result["similarity_score"] = normalized_item.get(
+                "similarity_score",
+                0
+            )
+            result["is_noise"] = normalized_item.get("is_noise", False)
+
+        return result
 
     def analyze_product(self, normalized_results):
         ingredient_results = []

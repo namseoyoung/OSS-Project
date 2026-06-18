@@ -136,10 +136,22 @@ class RiskExplanationEngine:
 
     def explain_product(self, product_risk):
         ingredient_results = product_risk.get("ingredient_results", [])
-        explanations = [
-            self.explain_ingredient(item)
-            for item in ingredient_results
-        ]
+        explanations = []
+
+        for item in ingredient_results:
+            is_unclassified = (
+                item.get("risk_found") is False
+                and item.get("error_code") == "CHEM_001"
+            )
+            is_low_quality = (
+                item.get("is_noise", False)
+                or item.get("similarity_score", 0) < 55
+            )
+
+            if is_unclassified and is_low_quality:
+                continue
+
+            explanations.append(self.explain_ingredient(item))
 
         return {
             "final_risk_level": product_risk.get("final_risk_level", "Unknown"),

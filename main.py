@@ -31,7 +31,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-normalizer = IngredientNormalizer(ALIAS_DB_PATH, threshold=90)
+normalizer = IngredientNormalizer(ALIAS_DB_PATH, threshold=75)
 risk_analyzer = RiskAnalyzer(RISK_DB_PATH)
 risk_explainer = RiskExplanationEngine(RISK_DB_PATH)
 
@@ -109,7 +109,7 @@ async def analyze_label_image(image: UploadFile = File(...)):
 
             ocr_result = detect_crop_ocr_pipeline(
                 img_input=temp_path,
-                confidence=40,
+                confidence=30,
                 overlap=30,
                 padding=10,
                 save_outputs=False

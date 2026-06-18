@@ -11,7 +11,16 @@ ROBOFLOW_API_KEY = "api code"
 ROBOFLOW_MODEL_ID = "oss-project-labeling/2"
 ROBOFLOW_URL = f"https://detect.roboflow.com/{ROBOFLOW_MODEL_ID}?api_key={ROBOFLOW_API_KEY}"
 
-reader = easyocr.Reader(['ko', 'en'])
+reader = None
+
+
+def get_ocr_reader():
+    global reader
+
+    if reader is None:
+        reader = easyocr.Reader(['ko', 'en'])
+
+    return reader
 
 STOPWORDS = [
     '사용방법', '주의사항', '내용량', '제조원', '제조국', '고객센터',
@@ -53,7 +62,7 @@ def parse_input_image(img_input):
     return image_b64_string, img_cv
 
 
-def detect_ingredient_label_v2(image_b64_string, confidence=40, overlap=30):
+def detect_ingredient_label_v2(image_b64_string, confidence=30, overlap=30):
     if not image_b64_string:
         print("[오류] 유효한 이미지 데이터가 없습니다.")
         return None, None
@@ -108,7 +117,7 @@ def crop_from_prediction_v2(img_cv, prediction, padding=10):
     return cropped_img, (x1, y1, x2, y2)
 
 
-def preprocess_label_image(cropped_img, blur_kernel=(3, 3), block_size=11, c=2, scale=2.0):
+def preprocess_label_image(cropped_img, blur_kernel=(3, 3), block_size=31, c=3, scale=4.0):
     if cropped_img is None:
         return None
 
@@ -132,7 +141,7 @@ def run_easyocr(image):
     if image is None:
         return []
     try:
-        return reader.readtext(image, detail=0)
+        return get_ocr_reader().readtext(image, detail=0)
     except Exception as e:
         print(f"[오류] OCR 실행 중 예외 발생: {e}")
         return []
@@ -180,13 +189,13 @@ def save_image(output_path, image):
 
 def detect_crop_ocr_pipeline(
     img_input,
-    confidence=40,
+    confidence=30,
     overlap=30,
     padding=10,
     blur_kernel=(3, 3),
-    block_size=11,
-    c=2,
-    scale=2.0,
+    block_size=31,
+    c=3,
+    scale=4.0,
     save_outputs=True
 ):
     result_data = {

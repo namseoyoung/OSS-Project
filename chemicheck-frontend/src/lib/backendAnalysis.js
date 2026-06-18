@@ -32,23 +32,34 @@ export const mapBackendAnalysis = (payload) => {
   const riskExplanation = payload.risk_explanation ?? {}
   const normalizedResults = payload.normalized_results ?? []
   const explanations = riskExplanation.ingredient_explanations ?? []
+  const ingredientResults = riskAnalysis.ingredient_results ?? []
   const candidates = payload.ocr?.ingredients ?? normalizedResults.map((item) => item.original_name).filter(Boolean)
 
-  const matchedIngredients = explanations.map((explanation, index) => {
-    const risk = normalizeRisk(explanation.risk_level)
-    const normalized = normalizedResults[index] ?? {}
+  const matchedIngredients = explanations.flatMap((explanation, index) => {
+    const riskResult = ingredientResults.find((item) => (
+      item.original_name === explanation.original_name
+      && item.standard_name === explanation.standard_name
+    )) ?? ingredientResults[index] ?? {}
 
-    return {
+    if (!riskResult.risk_found) return []
+
+    const risk = normalizeRisk(explanation.risk_level)
+    const normalized = normalizedResults.find((item) => (
+      item.original_name === explanation.original_name
+      && item.standard_name === explanation.standard_name
+    )) ?? normalizedResults[index] ?? {}
+
+    return [{
       id: `${explanation.standard_name}-${index}`,
       name: explanation.standard_name,
-      matchedAlias: normalized.matched_alias ?? explanation.original_name ?? explanation.standard_name,
+      matchedAlias: normalized.original_name ?? explanation.original_name ?? explanation.standard_name,
       category: explanation.category || '성분 정보',
       risk,
       riskMeta: riskMeta[risk],
       concerns: [explanation.basis || 'CSV 기반 위험도 분류'].filter(Boolean),
       guidance: [explanation.warning].filter(Boolean),
       sensitiveNote: explanation.description,
-    }
+    }]
   })
 
   const riskCounts = matchedIngredients.reduce(
