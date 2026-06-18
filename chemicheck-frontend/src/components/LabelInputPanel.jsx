@@ -1,6 +1,8 @@
 function LabelInputPanel({
   imagePreview,
   onImageChange,
+  isAnalyzing,
+  analysisError,
   riskSummary,
 }) {
   return (
@@ -17,6 +19,8 @@ function LabelInputPanel({
           <span>라벨 이미지 업로드</span>
         )}
       </label>
+      {isAnalyzing && <p className="analysis-status">이미지를 분석하고 있습니다.</p>}
+      {analysisError && <p className="analysis-error">{analysisError}</p>}
       {riskSummary}
     </div>
   )

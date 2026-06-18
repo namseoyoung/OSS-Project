@@ -5,8 +5,8 @@ import HeroSummary from './components/HeroSummary'
 import LabelInputPanel from './components/LabelInputPanel'
 import RiskSummary from './components/RiskSummary'
 import TopBar from './components/TopBar'
-import { sampleLabels } from './data/ingredientCatalog'
-import { analyzeLabel, buildSummary } from './lib/analyzeLabel'
+import { buildSummary } from './lib/analyzeLabel'
+import { uploadLabelImage } from './lib/backendAnalysis'
 
 const riskLabels = {
   low: '낮음',
@@ -16,20 +16,31 @@ const riskLabels = {
 }
 
 function App() {
-  const [labelText, setLabelText] = useState('')
+  const [analysis, setAnalysis] = useState(null)
   const [imagePreview, setImagePreview] = useState('')
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisError, setAnalysisError] = useState('')
   const [largeText, setLargeText] = useState(false)
   const hasUploadedImage = Boolean(imagePreview)
 
-  const analysis = useMemo(() => analyzeLabel(labelText, sampleLabels[0].productType), [labelText])
-  const summary = buildSummary(analysis)
+  const summary = useMemo(() => (analysis ? buildSummary(analysis) : ''), [analysis])
 
-  const handleImageChange = (event) => {
+  const handleImageChange = async (event) => {
     const file = event.target.files?.[0]
     if (!file) return
 
     setImagePreview(URL.createObjectURL(file))
-    setLabelText(sampleLabels[0].text)
+    setAnalysis(null)
+    setAnalysisError('')
+    setIsAnalyzing(true)
+
+    try {
+      setAnalysis(await uploadLabelImage(file))
+    } catch (error) {
+      setAnalysisError(error.message)
+    } finally {
+      setIsAnalyzing(false)
+    }
   }
 
   return (
@@ -41,13 +52,15 @@ function App() {
         <LabelInputPanel
           imagePreview={imagePreview}
           onImageChange={handleImageChange}
+          isAnalyzing={isAnalyzing}
+          analysisError={analysisError}
           riskSummary={
-            hasUploadedImage ? (
+            analysis ? (
               <RiskSummary analysis={analysis} riskLabels={riskLabels} summary={summary} />
             ) : null
           }
         />
-        {hasUploadedImage && <AnalysisPanel analysis={analysis} />}
+        {hasUploadedImage && analysis && <AnalysisPanel analysis={analysis} />}
       </section>
     </main>
   )
