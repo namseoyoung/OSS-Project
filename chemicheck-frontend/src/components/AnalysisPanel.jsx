@@ -32,13 +32,6 @@ function AnalysisPanel({ analysis }) {
         </div>
       </div>
 
-      {analysis.unmatchedCandidates.length > 0 && (
-        <div className="unmatched-list">
-          <strong>추가 확인 필요</strong>
-          <p>{analysis.unmatchedCandidates.join(', ')}</p>
-        </div>
-      )}
-
       <div className="ingredient-list">
         {analysis.matchedIngredients.length ? (
           analysis.matchedIngredients.map((ingredient) => (

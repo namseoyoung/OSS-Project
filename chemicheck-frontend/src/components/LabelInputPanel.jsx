@@ -1,9 +1,6 @@
 function LabelInputPanel({
   imagePreview,
-  productType,
-  productTypes,
   onImageChange,
-  onProductTypeChange,
   riskSummary,
 }) {
   return (
@@ -11,15 +8,6 @@ function LabelInputPanel({
       <div className="section-heading">
         <h2>라벨 이미지 업로드</h2>
       </div>
-
-      <label className="field-label first-field" htmlFor="product-type">
-        제품군
-      </label>
-      <select id="product-type" value={productType} onChange={(event) => onProductTypeChange(event.target.value)}>
-        {productTypes.map((type) => (
-          <option key={type}>{type}</option>
-        ))}
-      </select>
 
       <label className="file-drop">
         <input type="file" accept="image/*" onChange={onImageChange} />
