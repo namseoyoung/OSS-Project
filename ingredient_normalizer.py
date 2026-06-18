@@ -1,5 +1,6 @@
-import pandas as pd
 import re
+
+import pandas as pd
 from rapidfuzz import fuzz
 
 
@@ -9,13 +10,17 @@ class IngredientNormalizer:
         dataset_path,
         threshold=90,
         short_threshold=95,
-        ambiguity_margin=3
+        ambiguity_margin=3,
+        max_length_difference=7,
+        noise_threshold=55
     ):
         self.alias_dict = {}
         self.alias_list = []
         self.threshold = threshold
         self.short_threshold = short_threshold
         self.ambiguity_margin = ambiguity_margin
+        self.max_length_difference = max_length_difference
+        self.noise_threshold = noise_threshold
         self.load_dataset(dataset_path)
 
     def load_dataset(self, dataset_path):
@@ -77,7 +82,11 @@ class IngredientNormalizer:
             if self.extract_numbers(alias) != input_numbers:
                 continue
 
-            score = fuzz.ratio(ingredient, alias)
+            score = max(
+                fuzz.ratio(ingredient, alias),
+                fuzz.token_set_ratio(ingredient, alias),
+                fuzz.WRatio(ingredient, alias)
+            )
             standard_name = self.alias_dict[alias]
             current = best_by_standard.get(standard_name)
 
@@ -115,8 +124,16 @@ class IngredientNormalizer:
             len(candidates) > 1
             and best_score - second_score < self.ambiguity_margin
         )
+        has_valid_length = (
+            abs(len(ingredient) - len(best_alias))
+            <= self.max_length_difference
+        )
 
-        if best_score >= required_threshold and not is_ambiguous:
+        if (
+            best_score >= required_threshold
+            and not is_ambiguous
+            and has_valid_length
+        ):
             return {
                 "original_name": ingredient_name,
                 "standard_name": best_standard,
@@ -133,6 +150,8 @@ class IngredientNormalizer:
 
         if is_ambiguous:
             message = "유사한 후보가 여러 개라 자동 분류하지 않았습니다."
+        elif not has_valid_length:
+            message = "입력값과 후보 성분명의 길이 차이가 커 자동 분류하지 않았습니다."
         else:
             message = "유사도 임계값을 충족하지 못한 미분류/신규 화학물질입니다."
 
@@ -168,6 +187,7 @@ class IngredientNormalizer:
             "matched": False,
             "status": "UNCLASSIFIED_CHEMICAL",
             "error_code": "CHEM_001",
+            "is_noise": best_alias is not None and best_score < self.noise_threshold,
             "message": message
         }
 
@@ -214,10 +234,20 @@ class IngredientNormalizer:
             return results
 
         if isinstance(ingredient_list, str):
-            ingredient_list = [ingredient_list]
+            convert_list = [ingredient_list]
+        else:
+            convert_list = ingredient_list
 
-        for ingredient in ingredient_list:
+        for ingredient in convert_list:
+            ingredient = str(ingredient).strip()
+            if not ingredient:
+                continue
+
             result = self.normalize_one(ingredient)
+
+            if result.get("is_noise", False):
+                continue
+
             results.append(result)
 
         return results
