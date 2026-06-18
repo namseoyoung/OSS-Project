@@ -20,6 +20,9 @@ class IngredientNormalizer:
 
             standard_name = str(standard_value).strip().lower()
 
+            if standard_name == "" or standard_name == "nan":
+                continue
+
             self.alias_dict[standard_name] = standard_name
             self.alias_list.append(standard_name)
 
@@ -47,21 +50,16 @@ class IngredientNormalizer:
                 "match_type": "exact",
                 "similarity_score": 100,
                 "matched_alias": ingredient,
-                "matched": True
+                "matched": True,
+                "status": "MATCHED",
+                "error_code": None,
+                "message": "Exact Match를 통해 성분명 정규화에 성공했습니다."
             }
 
         return None
 
     def similarity_match(self, ingredient_name):
         ingredient = str(ingredient_name).strip().lower()
-
-        if not ingredient:
-            return self.unmatched_result(
-                ingredient_name,
-                None,
-                0,
-                "EMPTY_INGREDIENT_NAME"
-            )
 
         best_alias = None
         best_score = 0
@@ -80,33 +78,12 @@ class IngredientNormalizer:
                 "match_type": "similarity",
                 "similarity_score": best_score,
                 "matched_alias": best_alias,
-                "matched": True
+                "matched": True,
+                "status": "MATCHED",
+                "error_code": None,
+                "message": "Similarity Match를 통해 성분명 정규화에 성공했습니다."
             }
 
-        return self.unmatched_result(
-            ingredient_name,
-            best_alias,
-            best_score,
-            "INGREDIENT_NOT_CLASSIFIED"
-        )
-
-    def normalize_one(self, ingredient_name):
-        if ingredient_name is None:
-            return self.unmatched_result(
-                ingredient_name,
-                None,
-                0,
-                "EMPTY_INGREDIENT_NAME"
-            )
-
-        exact_result = self.exact_match(ingredient_name)
-
-        if exact_result is not None:
-            return exact_result
-
-        return self.similarity_match(ingredient_name)
-
-    def unmatched_result(self, ingredient_name, best_alias, best_score, error_code):
         return {
             "original_name": ingredient_name,
             "standard_name": None,
@@ -114,17 +91,55 @@ class IngredientNormalizer:
             "similarity_score": best_score,
             "matched_alias": best_alias,
             "matched": False,
-            "error_code": error_code
+            "status": "UNCLASSIFIED_CHEMICAL",
+            "error_code": "CHEM_001",
+            "message": "Exact Match와 Similarity Match 모두 실패한 미분류/신규 화학물질입니다."
         }
 
+    def normalize_one(self, ingredient_name):
+        if ingredient_name is None:
+            return {
+                "original_name": ingredient_name,
+                "standard_name": None,
+                "match_type": None,
+                "similarity_score": 0,
+                "matched_alias": None,
+                "matched": False,
+                "status": "INVALID_INPUT",
+                "error_code": "CHEM_000",
+                "message": "입력 성분명이 None입니다."
+            }
+
+        ingredient_text = str(ingredient_name).strip()
+
+        if ingredient_text == "":
+            return {
+                "original_name": ingredient_name,
+                "standard_name": None,
+                "match_type": None,
+                "similarity_score": 0,
+                "matched_alias": None,
+                "matched": False,
+                "status": "INVALID_INPUT",
+                "error_code": "CHEM_000",
+                "message": "입력 성분명이 비어 있습니다."
+            }
+
+        exact_result = self.exact_match(ingredient_text)
+
+        if exact_result is not None:
+            return exact_result
+
+        return self.similarity_match(ingredient_text)
+
     def normalize_ingredients(self, ingredient_list):
+        results = []
+
         if ingredient_list is None:
-            return []
+            return results
 
         if isinstance(ingredient_list, str):
             ingredient_list = [ingredient_list]
-
-        results = []
 
         for ingredient in ingredient_list:
             result = self.normalize_one(ingredient)
