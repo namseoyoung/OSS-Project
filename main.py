@@ -3,6 +3,7 @@ from risk_analyzer import RiskAnalyzer
 from risk_explanation import RiskExplanationEngine
 
 import os
+import re
 import tempfile
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -34,6 +35,191 @@ app.add_middleware(
 normalizer = IngredientNormalizer(ALIAS_DB_PATH, threshold=75)
 risk_analyzer = RiskAnalyzer(RISK_DB_PATH)
 risk_explainer = RiskExplanationEngine(RISK_DB_PATH)
+
+OCR_NOISE_WORDS = [
+    "사용물질",
+    "주요물질",
+    "주요 물질",
+    "성분",
+    "전성분",
+    "함유성분",
+    "사용방법",
+    "주의사항",
+    "품명",
+    "품번",
+    "용량",
+    "제조원",
+    "판매원",
+    "고객센터",
+    "안전기준",
+    "신고번호",
+    "주소",
+    "사업자",
+    "대표자",
+    "문의",
+    "홈페이지",
+    "전화",
+    "팩스",
+    "인터내셔널",
+]
+
+OCR_ADDRESS_WORDS = [
+    "서울특별시",
+    "경기",
+    "경기도",
+    "화성시",
+    "처신면",
+    "전곡산단",
+    "인천광역시",
+    "부산광역시",
+    "대구광역시",
+    "광주광역시",
+    "대전광역시",
+    "울산광역시",
+    "세종특별자치시",
+    "산단",
+]
+
+INGREDIENT_HINT_WORDS = [
+    "산",
+    "나트륨",
+    "칼륨",
+    "암모늄",
+    "염",
+    "알코올",
+    "에탄올",
+    "향료",
+    "오일",
+    "글리콜",
+    "클로라이드",
+    "설페이트",
+    "벤질",
+    "리모넨",
+    "리날로올",
+    "계면활성제",
+    "추출물",
+    "정제수",
+]
+
+
+def normalize_ocr_text(value):
+    return re.sub(r"[\s,./·ㆍ:;|+\-_\[\](){}]", "", str(value or "").lower())
+
+
+def strip_ocr_noise(value):
+    text = str(value or "").strip()
+    text = re.sub(r"\d{2,4}[-\s]\d{3,4}[-\s]?\d{0,4}", " ", text)
+
+    for word in OCR_NOISE_WORDS:
+        text = text.replace(word, " ")
+
+    text = re.sub(r"\s+", " ", text).strip(" :;,/·ㆍ")
+    return text
+
+
+def is_noise_candidate(value):
+    text = str(value or "").strip()
+    compact = re.sub(r"\s+", "", text)
+
+    if not compact:
+        return True
+
+    if re.search(r"\d{2,4}[-\s]\d{3,4}[-\s]?\d{0,4}", text):
+        return True
+
+    if re.search(r"\d+\s*(층|호|길|로|번길|번지)", text):
+        return True
+
+    if any(word in text for word in OCR_ADDRESS_WORDS):
+        return True
+
+    digit_count = len(re.findall(r"\d", text))
+    letter_count = len(re.findall(r"[가-힣a-zA-Z]", text))
+
+    return digit_count >= 3 and digit_count >= letter_count
+
+
+def is_likely_ingredient_candidate(value):
+    text = str(value or "").strip()
+
+    if is_noise_candidate(text):
+        return False
+
+    if extract_alias_candidates(text):
+        return True
+
+    return any(word in text for word in INGREDIENT_HINT_WORDS)
+
+
+def extract_alias_candidates(text):
+    normalized_text = normalize_ocr_text(text)
+    found = []
+
+    if not normalized_text:
+        return found
+
+    for alias in normalizer.alias_list:
+        alias_text = str(alias or "").strip()
+
+        if len(alias_text) < 2:
+            continue
+
+        normalized_alias = normalize_ocr_text(alias_text)
+
+        if normalized_alias and normalized_alias in normalized_text:
+            standard_name = normalizer.alias_dict.get(alias_text.lower(), alias_text)
+
+            if standard_name not in found:
+                found.append(standard_name)
+
+    return found
+
+
+def build_ingredient_candidates(ocr_candidates, raw_text, clean_text):
+    candidates = []
+
+    def add_candidate(value):
+        value = str(value or "").strip()
+
+        if value and value not in candidates:
+            candidates.append(value)
+
+    for source_text in [raw_text, clean_text, *ocr_candidates]:
+        for alias_candidate in extract_alias_candidates(source_text):
+            add_candidate(alias_candidate)
+
+    for candidate in ocr_candidates:
+        cleaned = strip_ocr_noise(candidate)
+
+        if not cleaned:
+            continue
+
+        if len(cleaned) > 30:
+            continue
+
+        if not is_likely_ingredient_candidate(cleaned):
+            continue
+
+        add_candidate(cleaned)
+
+    return candidates
+
+
+def build_no_candidate_detail(ocr_result, ocr_candidates):
+    message = str(ocr_result.get("message") or "").strip()
+
+    if message and message != "성공":
+        return message
+
+    if ocr_candidates:
+        sample_candidates = ", ".join(ocr_candidates[:3])
+        return (
+            "OCR은 완료됐지만 성분 후보를 찾지 못했습니다. "
+            "라벨의 성분 영역을 더 크게 촬영하거나 성분 DB/alias를 확인해 주세요. "
+            f"OCR 후보 예: {sample_candidates}"
+        )
+
+    return "OCR은 완료됐지만 읽어낸 텍스트에서 성분 후보를 찾지 못했습니다."
 
 
 def dedupe_normalized_results(normalized_results):
@@ -143,19 +329,25 @@ async def analyze_label_image(image: UploadFile = File(...)):
         processed_ocr = ocr_result.get("processed_ocr", {})
         raw_text = processed_ocr.get("raw_text") or original_ocr.get("raw_text", "")
         clean_text = processed_ocr.get("clean_text") or original_ocr.get("clean_text", "")
-        ingredients = []
+        ocr_candidates = []
 
         for candidate in (
             processed_ocr.get("ingredient_candidates", [])
             + original_ocr.get("ingredient_candidates", [])
         ):
-            if candidate not in ingredients:
-                ingredients.append(candidate)
+            if candidate not in ocr_candidates:
+                ocr_candidates.append(candidate)
+
+        ingredients = build_ingredient_candidates(
+            ocr_candidates,
+            raw_text,
+            clean_text
+        )
 
         if not ingredients:
             raise HTTPException(
                 status_code=422,
-                detail=ocr_result.get("message") or "OCR 결과에서 성분명을 추출하지 못했습니다."
+                detail=build_no_candidate_detail(ocr_result, ocr_candidates)
             )
 
         normalized_results = dedupe_normalized_results(
