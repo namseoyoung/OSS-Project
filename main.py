@@ -102,6 +102,29 @@ INGREDIENT_HINT_WORDS = [
 ]
 
 
+INGREDIENT_SECTION_START_WORDS = [
+    "전성분",
+    "성분",
+    "주요성분",
+    "주요 성분",
+    "함유성분",
+    "함유 성분",
+]
+
+INGREDIENT_SECTION_END_WORDS = [
+    "사용할 때의 주의사항",
+    "사용 시 주의사항",
+    "사용상 주의사항",
+    "주의사항",
+    "사용방법",
+    "용법",
+    "보관방법",
+    "제조원",
+    "판매원",
+]
+
+INGREDIENT_SPLIT_PATTERN = r"[,，/·ㆍ;|]+"
+
 def normalize_ocr_text(value):
     return re.sub(r"[\s,./·ㆍ:;|+\-_\[\](){}]", "", str(value or "").lower())
 
@@ -175,6 +198,77 @@ def extract_alias_candidates(text):
     return found
 
 
+def extract_ingredient_section(text):
+    source = str(text or "")
+
+    if not source.strip():
+        return ""
+
+    start_pattern = r"전\s*성\s*분|주\s*요\s*성\s*분|함\s*유\s*성\s*분|성\s*분"
+    end_pattern = r"사용\s*할\s*때\s*의\s*주\s*의\s*사\s*항|사용\s*시\s*주\s*의\s*사\s*항|사용\s*상\s*주\s*의\s*사\s*항|주\s*의\s*사\s*항|사용\s*방\s*법|용\s*법|보\s*관\s*방\s*법|제\s*조\s*원|판\s*매\s*원"
+    start_match = re.search(start_pattern, source)
+
+    if not start_match:
+        return ""
+
+    section = source[start_match.end():]
+    end_match = re.search(end_pattern, section)
+
+    if end_match:
+        section = section[:end_match.start()]
+
+    return re.sub(r"^[|:：\-\s]+", "", section).strip()
+
+
+def split_ingredient_text(text):
+    source = str(text or "").strip()
+
+    if not source:
+        return []
+
+    source = strip_ocr_noise(source)
+    source = re.sub(r"^[|:：\-\s]+", "", source)
+    source = re.sub(r"\([^)]*\)", "", source)
+
+    raw_pieces = [
+        piece.strip(" :：,，./·ㆍ;|+-_\n\r\t")
+        for piece in re.split(INGREDIENT_SPLIT_PATTERN, source)
+    ]
+    pieces = []
+
+    for piece in raw_pieces:
+        if not piece:
+            continue
+
+        spaced_tokens = [
+            token.strip(" :：,，./·ㆍ;|+-_\n\r\t")
+            for token in re.split(r"\s+", piece)
+            if token.strip(" :：,，./·ㆍ;|+-_\n\r\t")
+        ]
+
+        if len(spaced_tokens) >= 2:
+            pieces.extend(spaced_tokens)
+        else:
+            pieces.append(piece)
+
+    candidates = []
+
+    for piece in pieces:
+        if not piece:
+            continue
+
+        if len(piece) < 2:
+            continue
+
+        if is_noise_candidate(piece):
+            continue
+
+        if piece not in candidates:
+            candidates.append(piece)
+
+    return candidates
+
+
 def build_ingredient_candidates(ocr_candidates, raw_text, clean_text):
     candidates = []
 
@@ -185,16 +279,26 @@ def build_ingredient_candidates(ocr_candidates, raw_text, clean_text):
             candidates.append(value)
 
     for source_text in [raw_text, clean_text, *ocr_candidates]:
+        ingredient_section = extract_ingredient_section(source_text)
+
+        for section_candidate in split_ingredient_text(ingredient_section):
+            add_candidate(section_candidate)
+
+    for source_text in [raw_text, clean_text, *ocr_candidates]:
         for alias_candidate in extract_alias_candidates(source_text):
             add_candidate(alias_candidate)
 
     for candidate in ocr_candidates:
+        for split_candidate in split_ingredient_text(candidate):
+            if is_likely_ingredient_candidate(split_candidate):
+                add_candidate(split_candidate)
+
         cleaned = strip_ocr_noise(candidate)
 
         if not cleaned:
             continue
 
-        if len(cleaned) > 30:
+        if len(cleaned) > 60:
             continue
 
         if not is_likely_ingredient_candidate(cleaned):
@@ -203,7 +307,6 @@ def build_ingredient_candidates(ocr_candidates, raw_text, clean_text):
         add_candidate(cleaned)
 
     return candidates
-
 
 def build_no_candidate_detail(ocr_result, ocr_candidates):
     message = str(ocr_result.get("message") or "").strip()

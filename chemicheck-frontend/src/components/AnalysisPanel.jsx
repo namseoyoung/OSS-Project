@@ -1,5 +1,6 @@
 function AnalysisPanel({ analysis }) {
   const unknownIngredients = analysis.unknownIngredients ?? []
+  const hasMatchedIngredients = analysis.matchedIngredients.length > 0
 
   return (
     <div className="result-panel">
@@ -25,14 +26,14 @@ function AnalysisPanel({ analysis }) {
 
       <div className="recognition-summary" aria-label="OCR 성분 후보">
         <div>
-          <span>성분 후보</span>
-          <strong>{analysis.unmatchedCandidates.length || 0}개</strong>
+          <span>추가 확인</span>
+          <strong>{unknownIngredients.length || 0}개</strong>
         </div>
       </div>
 
       <div className="ingredient-list">
-        {analysis.matchedIngredients.length || unknownIngredients.length ? (
-          [...analysis.matchedIngredients, ...unknownIngredients].map((ingredient) => (
+        {hasMatchedIngredients ? (
+          analysis.matchedIngredients.map((ingredient) => (
             <article className={`ingredient-card risk-${ingredient.risk}`} key={ingredient.id}>
               <div>
                 <span className="risk-badge">{ingredient.riskMeta.label}</span>
@@ -43,10 +44,6 @@ function AnalysisPanel({ analysis }) {
                 <div>
                   <dt>인식 표기</dt>
                   <dd>{ingredient.matchedAlias}</dd>
-                </div>
-                <div>
-                  <dt>주요 우려</dt>
-                  <dd>{ingredient.concerns.join(', ')}</dd>
                 </div>
               </dl>
               <ul>
@@ -64,6 +61,20 @@ function AnalysisPanel({ analysis }) {
           </div>
         )}
       </div>
+
+      {unknownIngredients.length > 0 && (
+        <section className="unknown-ingredients" aria-label="추가 확인이 필요한 성분">
+          <div>
+            <h3>추가 확인이 필요한 성분</h3>
+            <p>OCR 인식 결과 또는 DB 미등록 성분으로, 위험도 산정에는 포함하지 않았습니다.</p>
+          </div>
+          <ul>
+            {unknownIngredients.map((ingredient) => (
+              <li key={ingredient.id}>{ingredient.name}</li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   )
 }
