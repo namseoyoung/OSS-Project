@@ -1,46 +1,86 @@
-﻿# ChemiCheck
+﻿# ChemiCheck: OCR-Based Risk Information Service for Consumer Chemical Products
 
-ChemiCheck는 생활화학제품 라벨 이미지를 분석하여 제품에 포함된 성분을 추출하고, 성분별 위험도와 주의사항을 사용자에게 제공하는 OCR 기반 웹 서비스입니다. 사용자는 제품 라벨 이미지를 업로드하기만 하면 OCR, 성분 정규화, 위험도 분석, 위험도 설명 생성 과정을 거쳐 제품의 종합 위험도와 성분별 안전 정보를 확인할 수 있습니다.
+ChemiCheck is an OCR-based web service that analyzes product label images, extracts ingredient information, and provides user-friendly risk information for consumer chemical products. The service is designed to help users understand complex chemical ingredient labels by converting them into product-level risk grades, ingredient-level risk results, descriptions, and safety precautions.
 
-이 프로젝트는 복잡한 화학 성분표를 일반 사용자도 이해하기 쉬운 위험도 등급과 생활 안전 안내로 변환하는 것을 목표로 합니다.
+The system consists of a FastAPI backend and a React + Vite frontend. The backend performs OCR processing, ingredient normalization, risk analysis, and risk explanation generation. The frontend provides an interface for image upload and displays the final risk analysis results in a readable format.
 
-## 주요 기능
+## Project Overview
 
-- 제품 라벨 이미지 업로드 기능을 제공함.
-- OCR을 통해 라벨 이미지에서 성분 영역과 텍스트를 추출함.
-- 성분명 alias 사전을 활용하여 OCR 결과를 표준 성분명으로 정규화함.
-- 위험도 데이터베이스를 기반으로 성분별 위험도를 분석함.
-- 제품 전체의 종합 위험도 등급을 산출함.
-- 성분별 설명, 주의사항, 위험도 등급을 사용자 화면에 표시함.
-- DB에 등록되지 않았거나 OCR 인식이 불확실한 성분은 추가 확인 필요 성분으로 분리하여 표시함.
-- React 기반 프론트엔드와 FastAPI 기반 백엔드를 연동하여 동작함.
+Consumer chemical product labels often contain many ingredients that are difficult for general users to interpret. ChemiCheck addresses this problem by automatically extracting ingredients from product labels and matching them with a risk database.
 
-## 프로젝트 구조
+The main workflow is as follows:
+
+1. The user uploads a product label image.
+2. The OCR module extracts text from the label image.
+3. The ingredient normalization module converts OCR results into standard ingredient names.
+4. The risk analysis module matches ingredients with the risk database.
+5. The risk explanation module generates user-friendly descriptions and warnings.
+6. The frontend displays the overall product risk level and ingredient-level safety information.
+
+## Main Features
+
+- Product label image upload
+- OCR-based ingredient text extraction
+- Ingredient name normalization using an alias database
+- Ingredient-level risk classification
+- Product-level final risk grade calculation
+- User-friendly risk descriptions and warnings
+- Separate display of unregistered or uncertain ingredients
+- Accessibility-oriented large text mode
+- FastAPI backend and React frontend integration
+
+## Repository Structure
 
 ```text
 OSS-Project/
-  main.py                         FastAPI 서버 진입점
-  ocr_processor.py                라벨 이미지 OCR 및 전처리 모듈
-  ingredient_normalizer.py        성분명 alias 기반 정규화 모듈
-  risk_analyzer.py                성분별 위험도 및 제품 위험도 분석 모듈
-  risk_explanation.py             위험도 설명 및 주의사항 생성 모듈
-  ingredient_alias.csv            성분명 alias 데이터베이스
-  ingredient_risk.csv             성분 위험도, 설명, 주의사항 데이터베이스
-  requirements.txt                백엔드 Python 의존성 목록
-  chemicheck-frontend/            React + Vite 프론트엔드
+  main.py                         FastAPI application entry point
+  ocr_processor.py                OCR processing and image preprocessing module
+  ingredient_normalizer.py        Ingredient normalization module
+  risk_analyzer.py                Ingredient and product risk analysis module
+  risk_explanation.py             Risk explanation and warning generation module
+  ingredient_alias.csv            Ingredient alias database
+  ingredient_risk.csv             Ingredient risk database
+  requirements.txt                Python backend dependencies
+  README.md                       Project documentation
+  LICENSE                         MIT License
+  chemicheck-frontend/            React + Vite frontend application
+    src/
+      components/                 React UI components
+      lib/                        Frontend data processing logic
+      data/                       Frontend sample/catalog data
+      App.jsx                     Main frontend application
+      App.css                     UI styles
 ```
 
-## 기술 스택
+## System Architecture
+
+```text
+Label Image
+   ↓
+OCR Processing
+   ↓
+Ingredient Candidate Extraction
+   ↓
+Ingredient Name Normalization
+   ↓
+Risk Database Matching
+   ↓
+Risk Explanation Generation
+   ↓
+Frontend Result Display
+```
+
+## Technology Stack
 
 ### Backend
 
 - Python
 - FastAPI
+- Uvicorn
 - Pandas
 - OpenCV
 - EasyOCR
 - RapidFuzz
-- Uvicorn
 
 ### Frontend
 
@@ -51,33 +91,44 @@ OSS-Project/
 
 ### Data
 
-- CSV 기반 성분 alias 데이터베이스
-- CSV 기반 위험도 데이터베이스
+- CSV-based ingredient alias database
+- CSV-based ingredient risk database
 
-## 설정 및 설치 방법
+## Getting Started
 
-### 1. 프로젝트 다운로드
+### Prerequisites
+
+Before running this project, install the following tools:
+
+- Python 3.10 or later recommended
+- Node.js 18 or later recommended
+- npm
+- Git
+
+## Installation
+
+### 1. Clone the Repository
 
 ```bash
 git clone <repository-url>
 cd OSS-Project
 ```
 
-이미 프로젝트 폴더를 받은 경우에는 `OSS-Project` 폴더로 이동합니다.
+If the project folder has already been downloaded, move directly into the project directory:
 
 ```bash
 cd OSS-Project
 ```
 
-### 2. 백엔드 실행 환경 설정
+### 2. Backend Setup
 
-Python 가상환경을 생성합니다.
+Create a Python virtual environment:
 
 ```bash
 python -m venv .venv
 ```
 
-가상환경을 활성화합니다.
+Activate the virtual environment.
 
 Windows PowerShell:
 
@@ -97,81 +148,90 @@ macOS/Linux:
 source .venv/bin/activate
 ```
 
-필요한 Python 패키지를 설치합니다.
+Install backend dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. 프론트엔드 실행 환경 설정
+### 3. Frontend Setup
 
-프론트엔드 폴더로 이동합니다.
+Move to the frontend directory:
 
 ```bash
 cd chemicheck-frontend
 ```
 
-Node.js 패키지를 설치합니다.
+Install frontend dependencies:
 
 ```bash
 npm install
 ```
 
-## 실행 방법
+## Running the Service
 
-ChemiCheck는 백엔드 서버와 프론트엔드 개발 서버를 각각 실행해야 합니다.
+ChemiCheck requires both the backend server and the frontend development server to run.
 
-### 1. 백엔드 서버 실행
+### 1. Run the Backend Server
 
-`OSS-Project` 폴더에서 다음 명령어를 실행합니다.
+Open a terminal in the `OSS-Project` directory and run:
 
 ```bash
 uvicorn main:app --reload
 ```
 
-정상적으로 실행되면 일반적으로 다음 주소에서 API 서버가 실행됩니다.
+The backend server will usually run at:
 
 ```text
 http://127.0.0.1:8000
 ```
 
-API 문서는 다음 주소에서 확인할 수 있습니다.
+The FastAPI documentation page is available at:
 
 ```text
 http://127.0.0.1:8000/docs
 ```
 
-### 2. 프론트엔드 서버 실행
+### 2. Run the Frontend Server
 
-새 터미널을 열고 `chemicheck-frontend` 폴더에서 다음 명령어를 실행합니다.
+Open another terminal and move to the frontend directory:
+
+```bash
+cd chemicheck-frontend
+```
+
+Run the development server:
 
 ```bash
 npm run dev
 ```
 
-정상적으로 실행되면 일반적으로 다음 주소에서 웹 화면을 확인할 수 있습니다.
+The frontend will usually run at:
 
 ```text
 http://localhost:5173
 ```
 
-## 사용법
+## Usage
 
-### 1. 웹 화면에서 사용하는 방법
+### Web Service Usage
 
-1. 백엔드 서버를 실행함.
-2. 프론트엔드 서버를 실행함.
-3. 브라우저에서 `http://localhost:5173`에 접속함.
-4. 제품 라벨 이미지를 업로드함.
-5. OCR 분석이 완료될 때까지 기다림.
-6. 제품 종합 위험도와 성분별 분석 결과를 확인함.
-7. DB에 등록되지 않은 성분은 추가 확인이 필요한 성분 목록에서 확인함.
+1. Run the backend server.
+2. Run the frontend development server.
+3. Open `http://localhost:5173` in a browser.
+4. Upload a product label image.
+5. Wait for OCR and risk analysis to complete.
+6. Check the overall product risk level.
+7. Review ingredient-level risk information and warnings.
+8. Check the additional confirmation list for unregistered or uncertain ingredients.
 
-### 2. API로 성분 리스트를 직접 분석하는 방법
+## API Usage Examples
 
-이미 추출된 성분 리스트가 있는 경우 `/api/analyze-ingredients` API를 사용할 수 있습니다.
+### Analyze Ingredients Directly
 
-요청 예시:
+If ingredient names are already available, use the `/api/analyze-ingredients` endpoint.
+
+Request example:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/analyze-ingredients" \
@@ -179,7 +239,7 @@ curl -X POST "http://127.0.0.1:8000/api/analyze-ingredients" \
   -d "{\"ingredients\": [\"정제수\", \"에탄올\", \"향료\"]}"
 ```
 
-응답 예시:
+Response example:
 
 ```json
 {
@@ -199,173 +259,178 @@ curl -X POST "http://127.0.0.1:8000/api/analyze-ingredients" \
 }
 ```
 
-실제 응답 내용은 `ingredient_alias.csv`와 `ingredient_risk.csv`에 등록된 성분 정보에 따라 달라질 수 있습니다.
+The actual response depends on the data registered in `ingredient_alias.csv` and `ingredient_risk.csv`.
 
-### 3. 이미지 라벨 분석 API 사용 방법
+### Analyze a Product Label Image
 
-제품 라벨 이미지는 `/api/analyze-label` API로 분석할 수 있습니다.
+Use the `/api/analyze-label` endpoint to analyze a label image.
 
-요청 예시:
+Request example:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/analyze-label" \
   -F "image=@sample_label.jpg"
 ```
 
-응답에는 OCR 결과, 정규화 결과, 위험도 분석 결과, 위험도 설명 결과가 포함됩니다.
+The response includes OCR results, normalized ingredient results, risk analysis results, and risk explanation results.
 
-## 실행 결과 예시
+## Example Results
 
-### 정상 분석 예시
+### Successful Analysis Example
 
-선명한 제품 라벨 이미지를 업로드하면 다음과 같은 흐름으로 결과가 출력됩니다.
+When a clear label image is uploaded, the service performs the following process:
 
-1. OCR이 라벨 이미지에서 성분 텍스트를 추출함.
-2. 추출된 성분명이 alias 사전을 통해 표준 성분명으로 변환됨.
-3. 위험도 DB와 매칭된 성분에 대해 위험도 등급이 산출됨.
-4. 제품 전체의 종합 위험도가 화면 상단에 표시됨.
-5. 성분별 카드에 위험도 등급, 인식 표기, 주의사항, 설명 문구가 표시됨.
+1. OCR extracts ingredient text from the label image.
+2. Extracted ingredient names are normalized using the alias database.
+3. Registered ingredients are matched with the risk database.
+4. The product-level risk grade is displayed at the top of the result screen.
+5. Ingredient-level cards show risk grades, recognized names, warnings, and descriptions.
 
-화면 출력 예시:
-
-```text
-종합 위험도: 보통
-
-성분별 결과
-- 에탄올
-  - 위험도: 보통
-  - 인식 표기: 에탄올
-  - 주의사항: 사용량을 지키고 환기하며, 피부나 눈에 직접 닿지 않도록 주의하세요.
-
-- 향료
-  - 위험도: 보통
-  - 인식 표기: 향료
-  - 주의사항: 민감한 사용자는 사용 전 성분을 확인하세요.
-```
-
-### 추가 확인 필요 성분 예시
-
-OCR 결과가 부정확하거나 위험도 DB에 등록되지 않은 성분은 임의로 위험도를 판단하지 않고 별도 목록으로 표시합니다.
-
-화면 출력 예시:
+Example output:
 
 ```text
-추가 확인이 필요한 성분
-OCR 인식 결과 또는 DB 미등록 성분으로, 위험도 산정에는 포함하지 않았습니다.
+Overall Risk Level: Medium
 
-사이클로펜타실록세인  카보머  알란토인
+Ingredient Results
+- Ethanol
+  - Risk Level: Medium
+  - Recognized Name: 에탄올
+  - Warning: Use in a well-ventilated area and avoid direct contact with eyes or skin.
+
+- Fragrance
+  - Risk Level: Medium
+  - Recognized Name: 향료
+  - Warning: Users sensitive to fragrance ingredients should check the ingredient list before use.
 ```
 
-### 잘 되지 않는 경우 예시
+### Unregistered Ingredient Example
 
-다음과 같은 경우에는 OCR 인식률이 낮아질 수 있습니다.
+If an ingredient is not registered in the database or the OCR result is uncertain, the service does not assign an arbitrary risk level. Instead, it displays the ingredient in a separate confirmation section.
 
-- 라벨 이미지가 흐릿한 경우
-- 빛 반사나 그림자가 있는 경우
-- 글자가 매우 작거나 여러 줄로 촘촘히 배치된 경우
-- 제품 용기가 휘어져 글자가 왜곡된 경우
-- 쉼표나 줄바꿈이 OCR에서 누락된 경우
-
-이 경우 일부 성분이 누락되거나 여러 성분이 하나로 붙어서 인식될 수 있습니다. 시스템은 이러한 성분을 추가 확인 필요 성분으로 분리하여 표시합니다.
-
-## 주요 모듈 설명
-
-### OCR 처리 모듈
-
-`ocr_processor.py`는 제품 라벨 이미지에서 성분 영역을 탐지하고 OCR을 수행합니다. OpenCV를 이용해 이미지를 전처리하고, EasyOCR을 통해 텍스트를 추출합니다.
-
-### 성분 정규화 모듈
-
-`ingredient_normalizer.py`는 OCR로 추출된 성분명을 표준 성분명으로 변환합니다. 정확히 일치하는 alias를 우선 확인하고, 필요한 경우 유사도 기반 매칭을 수행합니다.
-
-### 위험도 분석 모듈
-
-`risk_analyzer.py`는 정규화된 성분명을 위험도 DB와 비교하여 성분별 위험도 등급을 산출합니다. 성분별 점수를 기반으로 제품 전체의 최종 위험도 등급도 계산합니다.
-
-### 위험도 설명 생성 모듈
-
-`risk_explanation.py`는 위험도 분석 결과를 바탕으로 사용자 친화적인 설명과 주의사항을 생성합니다. DB에 저장된 `description`, `warning`, `basis` 정보를 우선 활용하고, 정보가 부족한 경우 위험도 등급에 따른 기본 안내 문구를 제공합니다.
-
-### 프론트엔드 UI
-
-`chemicheck-frontend`는 분석 결과를 사용자가 이해하기 쉬운 화면으로 제공합니다. 종합 위험도는 상단 요약 영역에 표시하고, 성분별 분석 결과는 카드 형태로 표시합니다. 미등록 성분은 큰 카드로 표시하지 않고 하단의 추가 확인 필요 성분 목록으로 정리하여 보여줍니다.
-
-## 데이터베이스 설명
-
-### ingredient_alias.csv
-
-성분명의 다양한 표기, 별칭, OCR 오인식 가능 표현을 표준 성분명과 연결하는 데이터입니다.
-
-예시:
+Example output:
 
 ```text
-표준 성분명, alias
-에탄올, 에칠알코올
-구연산, 시트릭애씨드
+Ingredients Requiring Additional Confirmation
+These ingredients were not included in risk calculation because they may be OCR errors or unregistered database entries.
+
+Cyclopentasiloxane  Carbomer  Allantoin
 ```
 
-### ingredient_risk.csv
+### Failure or Limitation Example
 
-성분별 위험도, 분류 근거, 사용자 설명, 주의사항 정보를 저장하는 데이터입니다.
+The service may produce incomplete results in the following cases:
 
-주요 컬럼:
+- The label image is blurry.
+- The label has strong light reflection or shadows.
+- The text is too small or densely arranged.
+- The product container is curved and the text is distorted.
+- OCR fails to recognize commas, line breaks, or separators.
+- The ingredient is not registered in the risk database.
 
-- `standard_name`: 표준 성분명
-- `category`: 성분 카테고리
-- `risk_level`: 위험도 등급
-- `basis`: 위험도 분류 근거
-- `warning`: 사용자 주의사항
-- `description`: 사용자 친화적 설명
+In these cases, some ingredients may be missed or incorrectly grouped. The service handles uncertain ingredients by separating them into the additional confirmation list.
 
-## 테스트 및 검증
+## Module Description
 
-### 백엔드 문법 확인
+### OCR Processing Module
+
+`ocr_processor.py` detects and processes the label image area. It uses OpenCV for image preprocessing and EasyOCR for text extraction. The OCR result is cleaned and converted into ingredient candidates.
+
+### Ingredient Normalization Module
+
+`ingredient_normalizer.py` converts OCR-extracted ingredient names into standard ingredient names. It uses exact matching and similarity-based matching with the ingredient alias database.
+
+### Risk Analysis Module
+
+`risk_analyzer.py` matches normalized ingredients with the risk database. It calculates ingredient-level risk scores and determines the final product risk level.
+
+### Risk Explanation Module
+
+`risk_explanation.py` generates user-friendly risk descriptions and warnings based on the risk analysis results. It uses `description`, `warning`, `basis`, and `risk_level` fields from the risk database. If detailed information is missing, the module generates fallback descriptions and default warnings based on the risk level.
+
+### Frontend UI
+
+The React frontend displays the analysis results in a user-friendly interface. The overall product risk level is shown in the summary area, while matched ingredients are shown as individual cards. Unregistered or uncertain ingredients are displayed separately as items requiring additional confirmation. The UI also includes a large text mode to improve readability and accessibility.
+
+## Dataset and Database
+
+### Ingredient Alias Database
+
+`ingredient_alias.csv` stores standard ingredient names and their aliases. This database helps correct different ingredient expressions and OCR recognition variations.
+
+Example:
+
+```text
+category,standard_name,aliases
+Solvent,Ethanol,Ethyl alcohol
+Acid,Citric acid,Citric acid
+```
+
+### Ingredient Risk Database
+
+`ingredient_risk.csv` stores risk information for each ingredient.
+
+Main fields:
+
+- `standard_name`: Standard ingredient name
+- `category`: Ingredient category
+- `risk_level`: Risk grade
+- `basis`: Reason for risk classification
+- `warning`: User safety warning
+- `description`: User-friendly ingredient description
+
+This database is used by both the risk analysis module and the risk explanation module.
+
+## Testing and Verification
+
+### Backend Syntax Check
 
 ```bash
 python -m py_compile main.py
 ```
 
-### 프론트엔드 린트 확인
+### Frontend Lint Check
 
 ```bash
 cd chemicheck-frontend
 npm run lint
 ```
 
-### 프론트엔드 빌드 확인
+### Frontend Build Check
 
 ```bash
 npm run build
 ```
 
-## 기술적 한계
+## Known Limitations
 
-- OCR 인식 성능은 이미지 품질에 영향을 받습니다.
-- 흐릿한 라벨, 빛 반사, 그림자, 기울어진 사진에서는 성분 추출 정확도가 낮아질 수 있습니다.
-- OCR이 쉼표나 줄바꿈을 인식하지 못하면 성분 단위 분리가 부정확할 수 있습니다.
-- 위험도 DB에 등록되지 않은 성분은 위험도 등급과 주의사항을 제공하기 어렵습니다.
-- 실제 제품의 성분 함량, 사용량, 노출 시간, 사용 환경은 현재 위험도 산정에 충분히 반영되지 않습니다.
-- 여러 성분의 상호작용이나 혼합 위험성은 제한적으로만 고려됩니다.
+- OCR accuracy depends heavily on image quality.
+- Blurry, tilted, reflective, or shadowed label images may reduce recognition accuracy.
+- Small and dense ingredient text may not be fully extracted.
+- If OCR misses commas or line breaks, ingredient separation may be inaccurate.
+- The risk database does not include every possible ingredient.
+- Unregistered ingredients cannot be assigned reliable risk levels.
+- Current risk analysis does not fully reflect ingredient concentration, exposure time, usage amount, or user environment.
+- Interactions between multiple ingredients are only limitedly considered.
 
-## 라이선스
+## License
 
-이 프로젝트는 학습 및 연구 목적의 오픈소스 프로젝트로 작성되었습니다. 별도의 라이선스 파일이 없는 경우, 코드와 데이터의 사용 범위는 프로젝트 제출 및 수업 평가 목적에 한정됩니다.
+This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
 
-외부 공개 또는 재사용을 계획하는 경우에는 MIT License, Apache License 2.0 등 명시적인 오픈소스 라이선스를 추가하는 것을 권장합니다.
+The MIT License allows use, copying, modification, merging, publishing, distribution, sublicensing, and selling copies of the software, provided that the copyright notice and license notice are included.
 
-## 기여하는 방법
+## Contributing
 
-프로젝트 개선에 기여하려면 다음 절차를 따릅니다.
+Contributions are welcome. To contribute to this project, follow the steps below.
 
-1. 이슈를 등록하여 개선 사항이나 오류를 설명합니다.
-2. 새로운 브랜치를 생성합니다.
+1. Open an issue describing the bug, improvement, or new feature.
+2. Create a new branch.
 
 ```bash
 git checkout -b feature/your-feature-name
 ```
 
-3. 기능을 수정하거나 버그를 해결합니다.
-4. 백엔드 문법 검사와 프론트엔드 린트를 실행합니다.
+3. Make changes to the code, data, or documentation.
+4. Run the appropriate checks.
 
 ```bash
 python -m py_compile main.py
@@ -373,22 +438,22 @@ cd chemicheck-frontend
 npm run lint
 ```
 
-5. 변경 내용을 커밋합니다.
+5. Commit your changes.
 
 ```bash
 git add .
 git commit -m "Describe your change"
 ```
 
-6. Pull Request를 생성하고 변경 목적, 수정 내용, 테스트 결과를 작성합니다.
+6. Open a Pull Request with a clear description of the changes and test results.
 
-## 기여 시 권장 사항
+## Contribution Guidelines
 
-- 성분 DB를 수정할 때는 표준 성분명과 alias를 함께 확인합니다.
-- 위험도 DB를 수정할 때는 위험도 등급, 설명, 주의사항의 근거를 명확히 작성합니다.
-- OCR 후처리 로직을 수정할 때는 선명한 이미지와 흐릿한 이미지 모두에서 테스트합니다.
-- UI를 수정할 때는 위험도 정보가 사용자에게 과장되거나 누락되어 보이지 않도록 주의합니다.
+- When updating the alias database, check both the standard ingredient name and possible alternative expressions.
+- When updating the risk database, provide clear evidence for the risk level, description, and warning.
+- When modifying OCR post-processing logic, test both clear and low-quality label images.
+- When modifying the UI, ensure that risk information is not exaggerated or hidden from users.
 
-## 문의
+## Acknowledgement
 
-프로젝트 관련 문의나 개선 사항은 이슈 또는 Pull Request를 통해 남길 수 있습니다.
+This project uses open-source libraries including FastAPI, EasyOCR, OpenCV, Pandas, RapidFuzz, React, and Vite. The object detection process for ingredient label area recognition was supported by a Roboflow-based workflow.
