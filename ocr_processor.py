@@ -7,7 +7,7 @@ import os
 import json
 import numpy as np
 
-ROBOFLOW_API_KEY = "bniw6VZ9wmxFGilM73rl"
+ROBOFLOW_API_KEY = "api_key"
 ROBOFLOW_MODEL_ID = "oss-project-labeling/2"
 ROBOFLOW_URL = f"https://detect.roboflow.com/{ROBOFLOW_MODEL_ID}?api_key={ROBOFLOW_API_KEY}"
 
